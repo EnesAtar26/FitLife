@@ -75,7 +75,15 @@ class HomeScreen extends StatelessWidget {
                   crossAxisSpacing: 12,
                   children: [
                     _StatCard(title: 'Kalori', value: '1,840 kcal', icon: Icons.local_fire_department, color: Colors.orange),
-                    _StatCard(title: 'Su', value: '6/8 bardak', icon: Icons.water_drop, color: Colors.blue),
+                    _StatCard(
+                      title: 'Su',
+                      value: '6/8 bardak',
+                      icon: Icons.water_drop,
+                      color: Colors.blue,
+                      onTap: () {
+                        Navigator.pushNamed(context, '/water'); // 👈 yönlendirme
+                      },
+                    ),
                     _StatCard(title: 'Uyku', value: '7 sa 30 dk', icon: Icons.bedtime, color: Colors.purple),
                     _StatCard(title: 'Aktivite', value: '45 dk koşu', icon: Icons.directions_run, color: Colors.green),
                   ],
@@ -94,37 +102,53 @@ class _StatCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap; // 👈 yeni eklendi
 
-  const _StatCard({required this.title, required this.value, required this.icon, required this.color});
+  const _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 13, color: Colors.black54)),
-                  const SizedBox(height: 6),
-                  Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
-                ],
+    return InkWell( // 👈 tıklama efekti için
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color),
               ),
-            )
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(title, style: const TextStyle(
+                        fontSize: 13, color: Colors.black54)),
+                    const SizedBox(height: 6),
+                    Text(value,
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ],
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );

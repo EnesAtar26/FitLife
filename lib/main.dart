@@ -3,6 +3,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/water_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
         LoginScreen.routeName: (_) => const LoginScreen(),
         SignupScreen.routeName: (_) => const SignupScreen(),
         HomeScreen.routeName: (_) => const HomeScreen(),
+        WaterScreen.routeName: (_) => const WaterScreen(),
       },
     );
   }
