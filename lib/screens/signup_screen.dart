@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import '../services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   static const routeName = '/signup';
@@ -14,6 +15,10 @@ class _SignupScreenState extends State<SignupScreen> {
   final _email = TextEditingController();
   final _pass = TextEditingController();
 
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+  String? _error;
+
   @override
   void dispose() {
     _email.dispose();
@@ -21,10 +26,29 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    if (_formKey.currentState?.validate() ?? false) {
-      Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final error = await _authService.register(
+      firstName: 'Fit',
+      lastName: 'Life',
+      email: _email.text.trim(),
+      password: _pass.text,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (error != null) {
+      setState(() => _error = error);
+      return;
     }
+
+    Navigator.pushReplacementNamed(context, HomeScreen.routeName);
   }
 
   @override
@@ -46,19 +70,47 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextFormField(decoration: InputDecoration(labelText: 'E-posta', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))), controller: _email, validator: (v) => (v == null || v.isEmpty) ? 'E-posta girin' : null),
+                    TextFormField(
+                      controller: _email,
+                      decoration: InputDecoration(
+                        labelText: 'E-posta',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      validator: (v) =>
+                      (v == null || v.isEmpty) ? 'E-posta girin' : null,
+                    ),
                     const SizedBox(height: 12),
-                    TextFormField(decoration: InputDecoration(labelText: 'Şifre', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))), controller: _pass, obscureText: true, validator: (v) => (v == null || v.isEmpty) ? 'Şifre girin' : null),
-                    const SizedBox(height: 18),
+                    TextFormField(
+                      controller: _pass,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Şifre',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      validator: (v) =>
+                      (v == null || v.isEmpty) ? 'Şifre girin' : null,
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (_error != null) ...[
+                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 10),
+                    ],
+
+                    const SizedBox(height: 6),
                     ElevatedButton(
-                      onPressed: _submit,
+                      onPressed: _isLoading ? null : _submit,
                       style: ButtonStyle(
                         backgroundColor: WidgetStatePropertyAll(color),
                         foregroundColor: const WidgetStatePropertyAll(Colors.white),
                         minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
-                        shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
-                      child: const Text('Kayıt ol'),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Kayıt ol'),
                     )
                   ],
                 ),

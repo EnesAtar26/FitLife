@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'login_screen.dart';
+import '../services/session_manager.dart';
 
 class HomeScreen extends StatelessWidget {
   static const routeName = '/home';
   const HomeScreen({super.key});
 
+  Future<void> _logout(BuildContext context) async {
+    await SessionManager.logout();
+    Navigator.pushReplacementNamed(context, LoginScreen.routeName);
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
@@ -15,18 +23,41 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // HEADER
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Günaydın, Ayşe ☀️', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[900])),
+                      Text(
+                        'Günaydın, Ayşe ☀️',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[900],
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('8 Kasım 2025, Cumartesi', style: TextStyle(color: Colors.grey[600])),
+                      Text(
+                        '8 Kasım 2025, Cumartesi',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
                     ],
                   ),
-                  CircleAvatar(backgroundColor: Colors.green[50], child: Icon(Icons.person, color: color)),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.logout, color: color),
+                        tooltip: 'Çıkış yap',
+                        onPressed: () => _logout(context),
+                      ),
+                      CircleAvatar(
+                        backgroundColor: Colors.green[50],
+                        child: Icon(Icons.person, color: color),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 18),

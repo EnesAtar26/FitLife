@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   static const routeName = '/login';
@@ -15,6 +16,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+  String? _error;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -22,11 +27,27 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    if (_formKey.currentState?.validate() ?? false) {
-      // For demo purposes we just go to Home
-      Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+  Future<void> _login() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final user = await _authService.login(
+      email: _emailCtrl.text.trim(),
+      password: _passCtrl.text,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (user == null) {
+      setState(() => _error = 'E-posta veya şifre hatalı');
+      return;
     }
+
+    Navigator.pushReplacementNamed(context, HomeScreen.routeName);
   }
 
   @override
@@ -67,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 18),
                           ElevatedButton(
-                            onPressed: _login,
+                            onPressed: _isLoading ? null : _login,
                             style: ButtonStyle(
                               backgroundColor: WidgetStatePropertyAll(color),
                               foregroundColor: const WidgetStatePropertyAll(Colors.white),
@@ -75,7 +96,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
                               elevation: const WidgetStatePropertyAll(2),
                             ),
-                            child: const Text('GİRİŞ YAP', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(
+                                color: Colors.white)
+                                : const Text(
+                              'GİRİŞ YAP',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold),
+                            ),
                           ),
                           const SizedBox(height: 8),
                           TextButton(onPressed: () {}, child: Text('Şifremi unuttum', style: TextStyle(color: color))),
