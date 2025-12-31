@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/session_manager.dart';
+import 'login_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   static const routeName = '/profile';
@@ -202,15 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.red,
                                 ),
-                                onPressed: () {
-                                  Navigator.pop(ctx);
-                                  // Oturumdan çıkış işlemi
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Çıkış yapıldı'),
-                                    ),
-                                  );
-                                },
+                                onPressed: () => _logout(context),
                                 child: const Text('Evet, Çıkış Yap'),
                               ),
                             ],
@@ -235,6 +230,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    await SessionManager.logout();
+    Navigator.pushReplacementNamed(context, LoginScreen.routeName);
   }
 }
 

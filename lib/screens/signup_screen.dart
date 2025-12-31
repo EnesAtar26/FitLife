@@ -12,6 +12,8 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
 
@@ -21,6 +23,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
     _email.dispose();
     _pass.dispose();
     super.dispose();
@@ -35,8 +39,8 @@ class _SignupScreenState extends State<SignupScreen> {
     });
 
     final error = await _authService.register(
-      firstName: 'Fit',
-      lastName: 'Life',
+      firstName: _firstName.text.trim(),
+      lastName: _lastName.text.trim(),
       email: _email.text.trim(),
       password: _pass.text,
     );
@@ -70,6 +74,26 @@ class _SignupScreenState extends State<SignupScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    TextFormField(
+                      controller: _firstName,
+                      decoration: InputDecoration(
+                        labelText: 'Ad',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Ad girin' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _lastName,
+                      decoration: InputDecoration(
+                        labelText: 'Soyad',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Soyad girin' : null,
+                    ),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _email,
                       decoration: InputDecoration(
