@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.HEALTH" />
+    <uses-permission android:name="android.permission.READ_HEALTH_DATA" />
+    
     <application
         android:label="flutter_application_6"
         android:name="${applicationName}"
