@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Sağlık verilerinize erişmek için izin gerekli</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Sağlık verilerinizi güncellemek için izin gerekli</string>
 </dict>
 </plist>

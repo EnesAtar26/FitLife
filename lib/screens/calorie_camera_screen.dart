@@ -1,0 +1,520 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+
+class FoodAnalysisScreen extends StatefulWidget {
+  const FoodAnalysisScreen({super.key});
+
+  @override
+  State<FoodAnalysisScreen> createState() => _FoodAnalysisScreenState();
+}
+
+class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
+  File? _selectedImage;
+  bool _isLoading = false;
+  String? _resultText;
+
+  // Analizden çekilen geçici veriler
+  String? _detectedFoodName;
+  int? _detectedCalories;
+
+  // Günlük yenen yemeklerin listesi (Hafızada tutulur)
+  final List<Map<String, dynamic>> _eatenFoods = [];
+
+  // Toplam kaloriyi hesaplayan getter
+  int get _totalCalories =>
+      _eatenFoods.fold(0, (sum, item) => sum + (item['calories'] as int));
+
+  // NOT: API Key'inizi güvenli tutun.
+  final String apiKey = 'AIzaSyC_jcgIuq1avGRm4sVMKt4mvXKfSij8Hu8';
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+        // Yeni fotoğraf seçildiğinde eski analiz sonucunu temizliyoruz
+        _resultText = null;
+        _detectedFoodName = null;
+        _detectedCalories = null;
+      });
+      _analyzeFood(File(pickedFile.path));
+    }
+  }
+
+  Future<void> _analyzeFood(File image) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash-lite',
+        apiKey: apiKey,
+      );
+
+      final prompt = TextPart(
+        "Bu fotoğraftaki yemeği analiz et. Yemeğin ne olduğunu tahmin et ve tahmini kalorisini hesapla. "
+        "Cevabı şu formatta, sade ve net ver:(başka bir şey yazma) \n"
+        "Yemek: [Yemek Adı] \n"
+        "Porsiyon: [Tahmini Porsiyon] \n"
+        "Kalori: [Sayı] kcal \n"
+        "Makrolar: [Protein, Karbonhidrat, Yağ]"
+        "\nEğer resimde yemek yoksa sadece 'Yemek tespit edilemedi' yaz.",
+      );
+
+      final imageBytes = await image.readAsBytes();
+      final imagePart = DataPart('image/jpeg', imageBytes);
+
+      final response = await model.generateContent([
+        Content.multi([prompt, imagePart]),
+      ]);
+
+      final text = response.text ?? "";
+
+      // Basit Regex ile veri çekme
+      String foodName = "Bilinmeyen Yemek";
+      int calories = 0;
+
+      final nameMatch = RegExp(r"Yemek:\s*(.*)").firstMatch(text);
+      final calMatch = RegExp(r"Kalori:\s*(\d+)").firstMatch(text);
+
+      if (nameMatch != null) foodName = nameMatch.group(1) ?? "";
+      if (calMatch != null)
+        calories = int.tryParse(calMatch.group(1) ?? "0") ?? 0;
+
+      setState(() {
+        _resultText = response.text;
+        _detectedFoodName = foodName;
+        _detectedCalories = calories;
+      });
+    } catch (e) {
+      setState(() {
+        _resultText = "Bağlantı hatası: Lütfen internetinizi kontrol edin.";
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Listeye ekleme fonksiyonu
+  void _addFoodToList() {
+    if (_detectedFoodName != null && _detectedCalories != null) {
+      setState(() {
+        _eatenFoods.add({
+          'name': _detectedFoodName,
+          'calories': _detectedCalories,
+          'time': DateTime.now(),
+        });
+        // İpucu: Analiz sonucu ekranda kalsın istendiği için _resultText'i temizlemiyoruz.
+      });
+
+      // Ufak bir bildirim göster
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$_detectedFoodName listeye eklendi!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // Listeden silme fonksiyonu
+  void _removeFood(int index) {
+    setState(() {
+      _eatenFoods.removeAt(index);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- ÜST KISIM (HEADER & ÖZET) ---
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.restaurant_menu,
+                      color: Colors.orange,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Kalori Takip',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[900],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // --- GÜNLÜK ÖZET KARTI (YENİ) ---
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.orange.shade400,
+                        Colors.deepOrange.shade600,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bugün Alınan',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Toplam Kalori',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '$_totalCalories kcal',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // --- KAMERA/FOTOĞRAF ALANI ---
+                Container(
+                  width: double.infinity,
+                  height: 250, // Biraz kısalttım ki liste sığsın
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: _selectedImage != null
+                        ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.add_a_photo_outlined,
+                                size: 50,
+                                color: Colors.grey[300],
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Yemeğini çek, analizi gör',
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // --- BUTONLAR ---
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildActionButton(
+                        context,
+                        icon: Icons.camera_alt,
+                        label: 'Kamera',
+                        color: Colors.orange,
+                        onTap: () => _pickImage(ImageSource.camera),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildActionButton(
+                        context,
+                        icon: Icons.photo_library,
+                        label: 'Galeri',
+                        color: Colors.blue,
+                        onTap: () => _pickImage(ImageSource.gallery),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // --- ANALİZ SONUCU VE EKLEME ---
+                if (_isLoading)
+                  Center(
+                    child: Column(
+                      children: [
+                        const CircularProgressIndicator(color: Colors.orange),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Yapay zeka hesaplıyor...",
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (_resultText != null)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Analiz Sonucu',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.auto_awesome,
+                                    color: Colors.orange,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    _resultText!,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      height: 1.5,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            // --- LİSTEYE EKLE BUTONU ---
+                            if (_detectedFoodName != null)
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _addFoodToList,
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  label: const Text('Bu Yemeği Listeye Ekle'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 30),
+                const Divider(),
+
+                // --- BUGÜN YENİLENLER LİSTESİ ---
+                if (_eatenFoods.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Bugün Yenilenler',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Liste Elemanları
+                  ListView.builder(
+                    physics:
+                        const NeverScrollableScrollPhysics(), // Sayfa zaten kayıyor
+                    shrinkWrap: true, // İçeriği kadar yer kapla
+                    itemCount: _eatenFoods.length,
+                    itemBuilder: (context, index) {
+                      final food = _eatenFoods[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Dismissible(
+                          key: Key("${food['name']}_$index"),
+                          direction: DismissDirection.endToStart,
+                          onDismissed: (_) => _removeFood(index),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.red[100],
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(Icons.delete, color: Colors.red),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.restaurant,
+                                    color: Colors.green,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    food['name'],
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '+${food['calories']} kcal',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Buton Tasarım Yardımcısı
+  Widget _buildActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 4,
+        shadowColor: color.withOpacity(0.4),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}

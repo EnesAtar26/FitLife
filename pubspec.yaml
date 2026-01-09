@@ -39,6 +39,10 @@ dependencies:
   firebase_auth: ^6.1.3
   firebase_core: ^4.3.0
   cloud_firestore: ^6.1.1
+  health: ^13.2.1
+  permission_handler: 12.0.1
+  image_picker: ^1.0.7
+  google_generative_ai: ^0.4.0
 
 dev_dependencies:
   flutter_test:

@@ -5,6 +5,9 @@ import 'screens/signup_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/water_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'screens/activity_detail_screen.dart';
+import 'screens/sleep_tracker_screen.dart';
+import 'screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +26,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(76, 175, 80, 1)),
         primaryColor: Color.fromRGBO(76, 175, 80, 1),
+        scaffoldBackgroundColor: Color.fromRGBO(248, 248, 248, 1), // Yumuşak gri arka plan
         textTheme: const TextTheme(
           titleLarge: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Color.fromRGBO(33, 33, 33, 1),fontFamily: "Roboto"),
           titleMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color.fromRGBO(117, 117, 117, 1), fontFamily: "Roboto"),
@@ -38,6 +42,9 @@ class MyApp extends StatelessWidget {
         SignupScreen.routeName: (_) => const SignupScreen(),
         HomeScreen.routeName: (_) => const HomeScreen(),
         WaterScreen.routeName: (_) => const WaterScreen(),
+        ActivityDetailScreen.routeName: (_) => const ActivityDetailScreen(),
+        SleepTrackerScreen.routeName: (_) => const SleepTrackerScreen(),
+        ProfileScreen.routeName: (_) => const ProfileScreen(),
       },
     );
   }

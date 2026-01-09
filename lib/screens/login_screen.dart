@@ -155,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color.fromRGBO(245, 245, 245, 1),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -178,16 +178,60 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           TextFormField(
                             controller: _emailCtrl,
-                            decoration: InputDecoration(labelText: 'E-posta', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                            decoration: InputDecoration(
+                              labelText: 'E-posta',
+                              labelStyle: const TextStyle(
+                              fontSize: 20,
+                              color: Colors.grey,
+                              ),
+                              border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.grey),
+                              gapPadding: 0, // kenar boşluğunu azaltır
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.grey),
+                              gapPadding: 0,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1),
+                              gapPadding: 0,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // içeriği kenara yaklaştırır
+                            ),
                             validator: validateEmail
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
+                            TextFormField(
                             controller: _passCtrl,
                             obscureText: true,
-                            decoration: InputDecoration(labelText: 'Şifre', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+                            decoration: InputDecoration(
+                              labelText: 'Şifre',
+                              labelStyle: const TextStyle(
+                              fontSize: 20,
+                              color: Colors.grey,
+                              ),
+                              border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.grey),
+                              gapPadding: 0,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.grey),
+                              gapPadding: 0,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1),
+                              gapPadding: 0,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
                             validator: validatePassword
-                          ),
+                            ),
                           const SizedBox(height: 18),
                           ElevatedButton(
                             onPressed: _login,
