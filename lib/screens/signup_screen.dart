@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'Services/firebase_dataBase.dart';
 import 'home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'Services/auth.dart';
+import 'Services/firebase_authService.dart';
 
 class SignupScreen extends StatefulWidget {
   static const routeName = '/signup';
