@@ -8,9 +8,11 @@ import 'screens/activity_detail_screen.dart';
 import 'screens/sleep_tracker_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/session_manager.dart';
+import 'services/notification_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(const MyApp());
 }
 
@@ -31,14 +33,41 @@ class MyApp extends StatelessWidget {
       title: 'FitLife',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Color.fromRGBO(76, 175, 80, 1)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color.fromRGBO(76, 175, 80, 1),
+        ),
         primaryColor: Color.fromRGBO(76, 175, 80, 1),
-        scaffoldBackgroundColor: Color.fromRGBO(248, 248, 248, 1), // Yumuşak gri arka plan
+        scaffoldBackgroundColor: Color.fromRGBO(
+          248,
+          248,
+          248,
+          1,
+        ), // Yumuşak gri arka plan
         textTheme: const TextTheme(
-          titleLarge: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Color.fromRGBO(33, 33, 33, 1),fontFamily: "Roboto"),
-          titleMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color.fromRGBO(117, 117, 117, 1), fontFamily: "Roboto"),
-          bodyLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Color.fromRGBO(33, 33, 33, 1),fontFamily: "Roboto"),
-          bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color.fromRGBO(117, 117, 117, 1), fontFamily: "Roboto"),
+          titleLarge: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.w700,
+            color: Color.fromRGBO(33, 33, 33, 1),
+            fontFamily: "Roboto",
+          ),
+          titleMedium: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Color.fromRGBO(117, 117, 117, 1),
+            fontFamily: "Roboto",
+          ),
+          bodyLarge: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: Color.fromRGBO(33, 33, 33, 1),
+            fontFamily: "Roboto",
+          ),
+          bodyMedium: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color.fromRGBO(117, 117, 117, 1),
+            fontFamily: "Roboto",
+          ),
           bodySmall: TextStyle(fontFamily: "Roboto"),
         ),
       ),

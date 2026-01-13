@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import eklendi
 import 'signup_screen.dart';
 import 'home_screen.dart';
 import '../services/auth_service.dart';
@@ -47,6 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // --- ID KAYDETME İŞLEMİ ---
+    final prefs = await SharedPreferences.getInstance();
+    if (user.id != null) {
+      await prefs.setInt('current_user_id', user.id!);
+      print("Giriş yapan kullanıcı ID kaydedildi: ${user.id}");
+    }
+    // -------------------------
+
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, HomeScreen.routeName);
   }
 
@@ -61,12 +71,25 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
             child: Column(
               children: [
-                Text('FitLife', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: Colors.grey[900])),
+                Text(
+                  'FitLife',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.grey[900],
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Günlük aktivitelerini kolayca takip et.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+                const Text(
+                  'Günlük aktivitelerini kolayca takip et.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black54),
+                ),
                 const SizedBox(height: 20),
                 Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 8,
                   child: Padding(
                     padding: const EdgeInsets.all(18.0),
@@ -79,94 +102,130 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: InputDecoration(
                               labelText: 'E-posta',
                               labelStyle: const TextStyle(
-                              fontSize: 20,
-                              color: Colors.grey,
+                                fontSize: 20,
+                                color: Colors.grey,
                               ),
                               border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0, // kenar boşluğunu azaltır
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: color, width: 1),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // içeriği kenara yaklaştırır
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
-                            validator: (v) => (v == null || v.isEmpty) ? 'E-posta girin' : null,
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'E-posta girin'
+                                : null,
                           ),
                           const SizedBox(height: 12),
-                            TextFormField(
+                          TextFormField(
                             controller: _passCtrl,
                             obscureText: true,
                             decoration: InputDecoration(
                               labelText: 'Şifre',
                               labelStyle: const TextStyle(
-                              fontSize: 20,
-                              color: Colors.grey,
+                                fontSize: 20,
+                                color: Colors.grey,
                               ),
                               border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
                               ),
                               enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: color, width: 1),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
-                            validator: (v) => (v == null || v.isEmpty) ? 'Şifre girin' : null,
-                            ),
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Şifre girin' : null,
+                          ),
                           const SizedBox(height: 18),
                           ElevatedButton(
                             onPressed: _isLoading ? null : _login,
                             style: ButtonStyle(
                               backgroundColor: WidgetStatePropertyAll(color),
-                              foregroundColor: const WidgetStatePropertyAll(Colors.white),
-                              shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                              minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
+                              foregroundColor: const WidgetStatePropertyAll(
+                                Colors.white,
+                              ),
+                              shape: WidgetStatePropertyAll(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              minimumSize: const WidgetStatePropertyAll(
+                                Size.fromHeight(50),
+                              ),
                               elevation: const WidgetStatePropertyAll(2),
                             ),
                             child: _isLoading
                                 ? const CircularProgressIndicator(
-                                color: Colors.white)
+                                    color: Colors.white,
+                                  )
                                 : const Text(
-                              'GİRİŞ YAP',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold),
-                            ),
+                                    'GİRİŞ YAP',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                           const SizedBox(height: 8),
-                          TextButton(onPressed: () {}, child: Text('Şifremi unuttum', style: TextStyle(color: color))),
+                          TextButton(
+                            onPressed: () {},
+                            child: Text(
+                              'Şifremi unuttum',
+                              style: TextStyle(color: color),
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Text('Hesabın yok mu?'),
                               TextButton(
-                                onPressed: () => Navigator.pushNamed(context, SignupScreen.routeName),
-                                child: Text('Kayıt ol', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-                              )
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  SignupScreen.routeName,
+                                ),
+                                child: Text(
+                                  'Kayıt ol',
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ],
-                          )
+                          ),
                         ],
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart'; // Servis yolunun doğru olduğundan emin olun
 
 class WaterScreen extends StatefulWidget {
   static const routeName = '/water';
@@ -11,25 +13,91 @@ class WaterScreen extends StatefulWidget {
   State<WaterScreen> createState() => _WaterScreenState();
 }
 
-class _WaterScreenState extends State<WaterScreen> {
-  List<int> waterData = [-1, 3, 5, 8, 6, 10, 3];
+class _WaterScreenState extends State<WaterScreen> with WidgetsBindingObserver {
+  // Grafik için varsayılan geçmiş verileri (Bugünü SharedPreferences'tan dolduracağız)
+  List<int> waterData = [2, 4, 6, 5, 3, 0, 0];
   String unit = 'bardak';
   int goal = 8;
+  int todayWater = 0; // Bugün içilen asıl sayaç
+
+  @override
+  void initState() {
+    super.initState();
+    // Uygulama yaşam döngüsünü dinle (Arka plandan dönünce güncellemek için)
+    WidgetsBinding.instance.addObserver(this);
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Kullanıcı bildirimden su ekleyip uygulamayı açarsa ekranı güncelle
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
+  }
+
+  // Verileri ve Hedefi Yükle
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Tarih bazlı anahtar oluştur (örn: water_2025_1_9)
+    final now = DateTime.now();
+    String todayKey = "water_${now.year}_${now.month}_${now.day}";
+
+    setState(() {
+      // Kaydedilmiş veriyi çek, yoksa 0
+      todayWater = prefs.getInt(todayKey) ?? 0;
+      // Hedefi çek, yoksa 8
+      goal = prefs.getInt('water_goal') ?? 8;
+      unit = prefs.getString('water_unit') ?? 'bardak';
+
+      // Grafik listesindeki bugünün indexini güncelle
+      final idx = todayIndex;
+      if (idx >= 0 && idx < waterData.length) {
+        waterData[idx] = todayWater;
+      }
+    });
+
+    // Bildirim barını senkronize et (Eğer yoksa oluşturur, varsa günceller)
+    NotificationService().showWaterProgressNotification(todayWater, goal);
+  }
 
   int get todayIndex {
     final wd = DateTime.now().weekday;
-    return (wd - 1) % 7;
+    return (wd - 1) % 7; // Pazartesi 0, Pazar 6
   }
 
-  void _addWater() {
+  // Su Ekleme Fonksiyonu
+  Future<void> _addWater() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    String todayKey = "water_${now.year}_${now.month}_${now.day}";
+
     setState(() {
+      todayWater++;
+      // Grafikteki veriyi de güncelle
       final idx = todayIndex;
-      waterData[idx] = (waterData[idx] + 1);
+      if (idx >= 0 && idx < waterData.length) {
+        waterData[idx] = todayWater;
+      }
     });
+
+    // Telefona kaydet
+    await prefs.setInt(todayKey, todayWater);
+
+    // Bildirim barını güncelle
+    NotificationService().showWaterProgressNotification(todayWater, goal);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Grafik max Y değeri hesaplama
     final maxVal =
         (waterData.isNotEmpty ? waterData.reduce((a, b) => a > b ? a : b) : 1)
             .ceil();
@@ -44,6 +112,7 @@ class _WaterScreenState extends State<WaterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Üst Başlık
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -60,6 +129,8 @@ class _WaterScreenState extends State<WaterScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+
+              // Hedef ve İçilen Kartı
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -82,7 +153,7 @@ class _WaterScreenState extends State<WaterScreen> {
                   children: [
                     Column(
                       children: [
-                        Icon(Icons.flag, color: Colors.blue, size: 28),
+                        const Icon(Icons.flag, color: Colors.blue, size: 28),
                         const SizedBox(height: 8),
                         Text(
                           'Hedef',
@@ -107,9 +178,7 @@ class _WaterScreenState extends State<WaterScreen> {
                       children: [
                         Icon(
                           Icons.water_drop,
-                          color: waterData[todayIndex].toInt() >= goal
-                              ? Colors.green
-                              : Colors.red,
+                          color: todayWater >= goal ? Colors.green : Colors.red,
                           size: 28,
                         ),
                         const SizedBox(height: 8),
@@ -122,11 +191,11 @@ class _WaterScreenState extends State<WaterScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${waterData[todayIndex].toInt()} $unit',
+                          '$todayWater $unit',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: waterData[todayIndex].toInt() >= goal
+                            color: todayWater >= goal
                                 ? Colors.green[600]
                                 : Colors.red[600],
                           ),
@@ -137,6 +206,8 @@ class _WaterScreenState extends State<WaterScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Grafik Alanı
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -242,10 +313,6 @@ class _WaterScreenState extends State<WaterScreen> {
                               ),
                             ),
                             barGroups: List.generate(waterData.length, (i) {
-                              if (waterData[i] == -1) {
-                                return BarChartGroupData(x: i, barRods: []);
-                              }
-
                               return BarChartGroupData(
                                 x: i,
                                 barRods: [
@@ -257,9 +324,12 @@ class _WaterScreenState extends State<WaterScreen> {
                                         ? Colors.green[500]
                                         : i == todayx
                                         ? Colors.orange[400]
-                                        : waterData[i].toInt() < goal
+                                        : waterData[i].toInt() <
+                                              goal // Geçmiş günler ve hedef altı
                                         ? Colors.blue.withValues(alpha: 0.5)
-                                        : Colors.blue,
+                                        : Colors.green.withValues(
+                                            alpha: 0.5,
+                                          ), // Geçmiş günler ve hedef üstü
                                     width: 18,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
@@ -274,6 +344,8 @@ class _WaterScreenState extends State<WaterScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Alt Butonlar
               Row(
                 children: [
                   Expanded(
@@ -366,17 +438,31 @@ class _WaterScreenState extends State<WaterScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final newGoal = int.tryParse(goalController.text);
+              final newUnit = unitController.text.trim();
+
               setState(() {
-                final newGoal = int.tryParse(goalController.text);
                 if (newGoal != null && newGoal > 0) {
                   goal = newGoal;
                 }
-                unit = unitController.text.trim().isEmpty
-                    ? unit
-                    : unitController.text.trim();
+                if (newUnit.isNotEmpty) {
+                  unit = newUnit;
+                }
               });
-              Navigator.pop(ctx);
+
+              // Hedefleri kaydet
+              await prefs.setInt('water_goal', goal);
+              await prefs.setString('water_unit', unit);
+
+              // Bildirimdeki hedefi güncelle
+              NotificationService().showWaterProgressNotification(
+                todayWater,
+                goal,
+              );
+
+              if (mounted) Navigator.pop(ctx);
             },
             child: const Text('Tamam', style: TextStyle(color: Colors.white)),
           ),

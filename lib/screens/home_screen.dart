@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ActivityDetailScreen(),
     WaterScreen(),
     FoodAnalysisScreen(),
-    ProfileScreen()
+    ProfileScreen(),
   ];
 
   @override
@@ -50,7 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
         HealthDataAccess.READ,
       ];
 
-      bool requested = await health.requestAuthorization(types, permissions: permissions);
+      bool requested = await health.requestAuthorization(
+        types,
+        permissions: permissions,
+      );
 
       if (requested) {
         await _fetchHealthData();
@@ -132,9 +135,19 @@ class _HomeScreenState extends State<HomeScreen> {
             Center(
               child: Column(
                 children: [
-                  Text('Günaydın, Ayşe ☀️', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[900])),
+                  Text(
+                    'Günaydın, Ayşe ☀️',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[900],
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('8 Kasım 2025, Cumartesi', style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                  Text(
+                    '8 Kasım 2025, Cumartesi',
+                    style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                  ),
                 ],
               ),
             ),
@@ -149,7 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white,
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, 8))],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
                     child: Center(
                       child: SizedBox(
@@ -167,11 +186,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('$_stepCount', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.grey[900])),
+                      Text(
+                        '$_stepCount',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.grey[900],
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Text('Adım', style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                      Text(
+                        'Adım',
+                        style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                      ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
@@ -188,7 +217,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        _StatCard(title: 'Kalori', value: '1,840 kcal', icon: Icons.local_fire_department, color: Colors.orange),
+                        _StatCard(
+                          title: 'Kalori',
+                          value: '1,840 kcal',
+                          icon: Icons.local_fire_department,
+                          color: Colors.orange,
+                        ),
                         _StatCard(
                           title: 'Su',
                           value: '6/8 bardak',
@@ -231,12 +265,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey[200]!, width: 1),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 15, offset: const Offset(0, 4))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 15,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Bu Haftanın Kalori İstatistiği', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[900])),
+                          Text(
+                            'Bu Haftanın Kalori İstatistiği',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[900],
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           SizedBox(
                             height: 200,
@@ -255,8 +302,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   leftTitles: AxisTitles(
                                     sideTitles: SideTitles(showTitles: false),
                                   ),
-                                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                  topTitles: AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  rightTitles: AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
                                 ),
                                 borderData: FlBorderData(show: false),
                                 barGroups: _getWeeklyCalorieData(),
@@ -270,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -280,10 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -337,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
               label: 'Profil',
-            )
+            ),
           ],
         ),
       ),
@@ -366,9 +414,13 @@ class _HomeScreenState extends State<HomeScreen> {
   );
 
   Widget getTitles(double value, TitleMeta meta) {
-    const style = TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12);
+    const style = TextStyle(
+      color: Colors.grey,
+      fontWeight: FontWeight.bold,
+      fontSize: 12,
+    );
     const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-    
+
     return SideTitleWidget(
       meta: meta,
       child: Text(days[value.toInt()], style: style),
@@ -378,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<BarChartGroupData> _getWeeklyCalorieData() {
     // Haftalık örnek kalori verisi
     final weeklyData = [1600, 1800, 1550, 1900, 1840, 1700, 2000];
-    
+
     return List.generate(7, (index) {
       return BarChartGroupData(
         x: index,
@@ -442,14 +494,24 @@ class _StatCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(title, style: const TextStyle(
-                        fontSize: 14, color: Colors.black54)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                    ),
                     const SizedBox(height: 6),
-                    Text(value,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ),
