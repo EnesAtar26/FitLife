@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'settings_screen.dart';
+import 'update_profile_info_screen.dart';
+import 'reminder_edit_screen.dart';
+
 
 // Profile screen implementation approximating the provided mockup.
 // Drop this file into `lib/profile_screen.dart` and use ProfileScreen() in your app.
 
+// ---------------- SETTINGS SCREEN ----------------
+
+
+// ---------------- PROFILE SCREEN ----------------
 class ProfileScreen extends StatefulWidget {
-  static const routeName = '/profile';
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -14,7 +21,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   // Mocked user data
   String name = 'Ayşe Yılmaz';
-  String subtitle = 'Yaş: 22 • 1. sınıf';
+  String subtitle = 'Yaş: 22 • Kadın';
   int steps = 7236;
   int calories = 1840;
   int waterGlasses = 6; // of 8
@@ -32,10 +39,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: Colors.black87,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {},
-          )
+         IconButton(
+  icon: const Icon(Icons.settings),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SettingsScreen(),
+      ),
+    );
+  },
+)
+
         ],
       ),
       backgroundColor: const Color(0xFFF7F8FA),
@@ -48,8 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 18),
             _buildPrimaryStatsCard(),
             const SizedBox(height: 16),
-            _buildActionButtonsRow(),
-            const SizedBox(height: 18),
+           
             _buildSmallStatsGrid(),
             const SizedBox(height: 18),
             _buildGoalsCard(),
@@ -93,26 +107,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () {},
-                  )
+                  
                 ],
               ),
               const SizedBox(height: 10),
               Row(
                 children: [
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.green[700],
-                      elevation: 0,
-                      side: BorderSide(color: Colors.green.shade700),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: const Text('Bilgileri Güncelle'),
-                  ),
+                 InkWell(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const UpdateProfileInfoScreen(),
+      ),
+    );
+  },
+  borderRadius: BorderRadius.circular(8),
+  child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.edit, size: 18, color: Colors.green[700]),
+        const SizedBox(width: 6),
+        Text(
+          'Bilgileri Güncelle',
+          style: TextStyle(
+            color: Colors.green[700],
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
                 ],
               )
             ],
@@ -194,44 +223,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildActionButtonsRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.add),
-            label: const Text('Yeni Aktivite Ekle'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade600,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton(
-          onPressed: () {},
-          child: const Text('+1 Bardak Ekle'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.green.shade700,
-            elevation: 0,
-            side: BorderSide(color: Colors.green.shade700),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          ),
-        )
-      ],
-    );
-  }
-
+ 
   Widget _buildSmallStatsGrid() {
     return Row(
       children: [
         Expanded(child: _miniCard('Aktivite', '45 dk', '45 dk koşu')),
         const SizedBox(width: 12),
-        Expanded(child: _miniCard('Su Takibi', '$waterGlasses/8', 'Günlük')),
+        Expanded(child: _miniCard('Su Takibi', '$waterGlasses/8', 'Günlük')),        
         const SizedBox(width: 12),
         Expanded(child: _miniCard('Uyku Takibi', '${sleep.inHours}h ${sleep.inMinutes % 60}m', 'Hedef: 7h 30m')),
       ],
@@ -288,36 +286,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildRemindersCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Hatırlatıcılar', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.notifications_none),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Su içme hatırlatıcısı - Her 2 saatte bir')),
-                TextButton(onPressed: () {}, child: const Text('Düzenle'))
-              ],
+Widget _buildRemindersCard() {
+  return Card(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Hatırlatıcılar',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
             ),
-            const Divider(),
-            Row(
-              children: [
-                const Icon(Icons.bedtime_outlined),
-                const SizedBox(width: 8),
-                Expanded(child: Text('Uyku hedefi hatırlatıcısı')),
-                TextButton(onPressed: () {}, child: const Text('Güncelle'))
-              ],
-            )
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+
+          //  SU HATIRLATICISI
+          Row(
+            children: [
+              const Icon(Icons.notifications_none),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Su içme hatırlatıcısı\nHer 2 saatte bir',
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ReminderEditScreen(
+                        title: 'Su Hatırlatıcısı',
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Düzenle'),
+              ),
+            ],
+          ),
+
+          const Divider(),
+
+          //  UYKU HATIRLATICISI
+          Row(
+            children: [
+              const Icon(Icons.bedtime_outlined),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Uyku hatırlatıcısı\nHedef uyku saati',
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ReminderEditScreen(
+                        title: 'Uyku Hatırlatıcısı',
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('Güncelle'),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 }
