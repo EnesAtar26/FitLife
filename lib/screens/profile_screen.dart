@@ -12,6 +12,7 @@ import 'reminder_edit_screen.dart';
 
 // ---------------- PROFILE SCREEN ----------------
 class ProfileScreen extends StatefulWidget {
+  static const routeName = '/profile';
   const ProfileScreen({super.key});
 
   @override
