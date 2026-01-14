@@ -4,8 +4,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
-
-// 👇 Veritabanı dosyalarını import et
+import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/water_log_model.dart';
 
@@ -14,12 +13,15 @@ import '../models/water_log_model.dart';
 void notificationTapBackground(
   NotificationResponse notificationResponse,
 ) async {
+  // 1. Motoru Başlat
+  WidgetsFlutterBinding.ensureInitialized();
+
   print("🔔 BİLDİRİM BUTONUNA BASILDI: ${notificationResponse.actionId}");
 
   if (notificationResponse.actionId == 'add_water') {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.reload();
+      await prefs.reload(); // En güncel veriyi al
 
       int userId = prefs.getInt('current_user_id') ?? 1;
       int goal = prefs.getInt('water_goal') ?? 8;
@@ -28,6 +30,10 @@ void notificationTapBackground(
       String todayStr =
           "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
+      // WaterScreen'in kullandığı anahtar yapısı (water_2025_1_14 gibi)
+      String todayKey = "water_${now.year}_${now.month}_${now.day}";
+
+      // 2. Veritabanına Ekle (Kalıcı Kayıt)
       WaterLog newLog = WaterLog(
         userId: userId,
         date: todayStr,
@@ -36,7 +42,9 @@ void notificationTapBackground(
       );
 
       await DatabaseHelper.instance.createWaterLog(newLog);
+      print("✅ Veritabanına eklendi (Arka Plan)");
 
+      // 3. Yeni Toplamı Hesapla
       List<WaterLog> allLogs = await DatabaseHelper.instance
           .getWaterLogsForUser(userId);
       int totalWaterToday = 0;
@@ -46,15 +54,23 @@ void notificationTapBackground(
         }
       }
 
+      // 👇👇👇 KRİTİK DÜZELTME BURADA 👇👇👇
+      // WaterScreen ekranının okuduğu yeri de güncelliyoruz!
+      await prefs.setInt(todayKey, totalWaterToday);
+      // 👆👆👆 ARTIK EKRAN GÜNCEL SAYIYI BİLECEK 👆👆👆
+
+      // 4. Bildirimi Güncelle
       final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
           FlutterLocalNotificationsPlugin();
 
-      // Arka plan için initialize (Android Ayarları)
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const InitializationSettings initializationSettings =
           InitializationSettings(android: initializationSettingsAndroid);
+
       await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+      int progress = totalWaterToday > goal ? goal : totalWaterToday;
 
       final AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
@@ -67,7 +83,7 @@ void notificationTapBackground(
             autoCancel: false,
             showProgress: true,
             maxProgress: goal,
-            progress: totalWaterToday > goal ? goal : totalWaterToday,
+            progress: progress,
             actions: <AndroidNotificationAction>[
               const AndroidNotificationAction(
                 'add_water',
@@ -80,8 +96,8 @@ void notificationTapBackground(
 
       await flutterLocalNotificationsPlugin.show(
         888,
-        'Su Hedefi: $totalWaterToday / $goal',
-        'Hadi bir bardak daha iç!',
+        'Su Hedefi: $totalWaterToday / $goal 💧',
+        'Harikasın! Bir bardak daha içmeye ne dersin? 💧',
         NotificationDetails(android: androidDetails),
       );
     } catch (e) {
@@ -100,7 +116,6 @@ class NotificationService {
 
   Future<void> init() async {
     tz.initializeTimeZones();
-
     final MethodChannel platform = MethodChannel('flutter.native/helper');
     String timeZoneName;
     try {
@@ -129,6 +144,7 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (details) {
+        // Uygulama ön plandayken butona basılırsa
         if (details.actionId == 'add_water') {
           notificationTapBackground(details);
         }
@@ -137,43 +153,131 @@ class NotificationService {
     );
   }
 
-  // --- ANA KURULUM FONKSİYONU ---
-  // Uygulama açılınca Home Screen'den bu çağrılacak
+  // ==========================================
+  // 1. GERÇEK SİSTEM (Üretim Modu) 📅
+  // ==========================================
   Future<void> setupDailyReminders() async {
-    print("📅 Günlük hatırlatıcılar kuruluyor...");
+    print("📅 Gerçek zamanlı hatırlatıcılar kuruluyor...");
 
-    // Önce eski zamanlanmış bildirimleri temizle (Çakışma olmasın)
-    // Not: ID 888 (Su barı) iptal edilmez çünkü o 'show' ile gösterildi, 'schedule' değil.
-    await flutterLocalNotificationsPlugin.cancelAll();
+    await flutterLocalNotificationsPlugin.cancel(101);
+    await flutterLocalNotificationsPlugin.cancel(102);
+    await flutterLocalNotificationsPlugin.cancel(999);
 
-    // 1. SU HATIRLATMA (Her gün 14:00)
     await _scheduleDaily(
       id: 101,
-      title: "Su İçmeyi Unutma 💧",
-      body: "Günlük hedefine ulaşmak için bir bardak su iç.",
+      title: "Su İçme Zamanı 💧",
+      body: "Vücudunun suya ihtiyacı var. Bir bardak su içme vakti! 💧",
       hour: 14,
       minute: 00,
     );
 
-    // 2. AKTİVİTE HATIRLATMA (Her gün 20:00)
     await _scheduleDaily(
       id: 102,
-      title: "Hareket Zamanı! 🏃",
-      body: "Bugünkü egzersizlerini tamamladın mı?",
+      title: "Hareket Vakti 🏃",
+      body: "Bugünkü hedeflerini tamamladın mı? Hadi biraz hareket edelim! 🏃",
       hour: 20,
       minute: 00,
     );
 
-    // 3. HAREKETSİZLİK HATIRLATMA (3 Gün Sonra)
     await _scheduleInactivity();
+    await _refreshWaterProgressFromDB();
 
-    // 4. Su Barını Güncelle (Kullanıcı görsün)
-    await _refreshWaterProgress();
-
-    print("✅ Tüm alarmlar başarıyla kuruldu.");
+    print("✅ Gerçek sistem aktif: Metinler güncellendi.");
   }
 
-  // Yardımcı: Günlük Alarm Kurma
+  // ==========================================
+  // 2. SİMÜLASYON MODU (30 Saniye Sonra) 🚀
+  // ==========================================
+  Future<void> scheduleAllSimulations() async {
+    print("🧪 Simülasyon Modu: 30 saniye sonra örnekler gelecek...");
+
+    final now = tz.TZDateTime.now(tz.UTC);
+    final triggerTime = now.add(const Duration(seconds: 30));
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      201,
+      'DEMO: Su İçme Zamanı 💧',
+      'Vücudunun suya ihtiyacı var. Bir bardak su içme vakti! 💧',
+      triggerTime,
+      _simulationDetails(),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      202,
+      'DEMO: Hareket Vakti 🏃',
+      'Bugünkü hedeflerini tamamladın mı? Hadi biraz hareket edelim! 🏃',
+      triggerTime,
+      _simulationDetails(),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      203,
+      'DEMO: Seni Çok Özledik 🥺',
+      '3 gündür FitLife\'a uğramadın. Sağlığın için geri dönmeye ne dersin? 🥺',
+      triggerTime,
+      _simulationDetails(),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  NotificationDetails _simulationDetails() {
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        'simulation_channel',
+        'Test Bildirimleri',
+        channelDescription: '30 saniyelik testler',
+        importance: Importance.max,
+        priority: Priority.high,
+        visibility: NotificationVisibility.public,
+        playSound: true,
+        enableVibration: true,
+      ),
+    );
+  }
+
+  // ==========================================
+  // YARDIMCI METOTLAR
+  // ==========================================
+
+  Future<void> showWaterProgressNotification(int current, int goal) async {
+    int progress = current > goal ? goal : current;
+    final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'water_progress_channel',
+          'Su Takibi',
+          channelDescription: 'Bildirim çubuğunda su takibi',
+          importance: Importance.low,
+          priority: Priority.low,
+          ongoing: true,
+          autoCancel: false,
+          showProgress: true,
+          maxProgress: goal,
+          progress: progress,
+          actions: <AndroidNotificationAction>[
+            const AndroidNotificationAction(
+              'add_water',
+              '+1 Bardak Ekle',
+              showsUserInterface: false,
+              cancelNotification: false,
+            ),
+          ],
+        );
+    await flutterLocalNotificationsPlugin.show(
+      888,
+      'Su Hedefi: $current / $goal 💧',
+      'Harikasın! Bir bardak daha içmeye ne dersin? 💧',
+      NotificationDetails(android: androidDetails),
+    );
+  }
+
   Future<void> _scheduleDaily({
     required int id,
     required String title,
@@ -188,32 +292,27 @@ class NotificationService {
       _nextInstanceOfTime(hour, minute),
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'daily_reminders_channel', // Kanal ID
+          'daily_reminders_channel',
           'Günlük Hatırlatıcılar',
-          channelDescription: 'Günlük su ve aktivite hatırlatmaları',
           importance: Importance.max,
           priority: Priority.high,
-          visibility: NotificationVisibility.public,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // Her gün tekrarla
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
-  // Yardımcı: Hareketsizlik Alarmı
   Future<void> _scheduleInactivity() async {
-    // Şu andan 3 gün sonrası
     final scheduledDate = tz.TZDateTime.now(
       tz.local,
     ).add(const Duration(days: 3));
-
     await flutterLocalNotificationsPlugin.zonedSchedule(
       999,
-      'Seni Özledik! 🥺',
-      '3 gündür FitLife\'a girmedin. Hadi geri dön!',
+      'Seni Çok Özledik 🥺',
+      '3 gündür FitLife\'a uğramadın. Sağlığın için geri dönmeye ne dersin? 🥺',
       scheduledDate,
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -229,16 +328,13 @@ class NotificationService {
     );
   }
 
-  // Yardımcı: Su barını veritabanından okuyup göster
-  Future<void> _refreshWaterProgress() async {
+  Future<void> _refreshWaterProgressFromDB() async {
     final prefs = await SharedPreferences.getInstance();
     int userId = prefs.getInt('current_user_id') ?? 1;
     int goal = prefs.getInt('water_goal') ?? 8;
-
     final now = DateTime.now();
     String todayStr =
         "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
     List<WaterLog> allLogs = await DatabaseHelper.instance.getWaterLogsForUser(
       userId,
     );
@@ -246,36 +342,7 @@ class NotificationService {
     for (var log in allLogs) {
       if (log.date == todayStr) total += log.amountGlasses;
     }
-
-    // Su barını gösteren fonksiyonu çağır (kod tekrarını önlemek için showWater... fonksiyonunu kullanabilirsin ama burada direkt yazıyorum)
-    final AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'water_progress_channel',
-          'Su Takibi',
-          channelDescription: 'Bildirim çubuğunda su takibi',
-          importance: Importance.low,
-          priority: Priority.low,
-          ongoing: true,
-          autoCancel: false,
-          showProgress: true,
-          maxProgress: goal,
-          progress: total > goal ? goal : total,
-          actions: <AndroidNotificationAction>[
-            const AndroidNotificationAction(
-              'add_water',
-              '+1 Bardak Ekle',
-              showsUserInterface: false,
-              cancelNotification: false,
-            ),
-          ],
-        );
-
-    await flutterLocalNotificationsPlugin.show(
-      888,
-      'Su Hedefi: $total / $goal',
-      'Hadi bir bardak daha iç!',
-      NotificationDetails(android: androidDetails),
-    );
+    await showWaterProgressNotification(total, goal);
   }
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
@@ -288,9 +355,8 @@ class NotificationService {
       hour,
       minute,
     );
-    if (scheduledDate.isBefore(now)) {
+    if (scheduledDate.isBefore(now))
       scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
     return scheduledDate;
   }
 }

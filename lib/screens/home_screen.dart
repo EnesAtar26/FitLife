@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'calorie_camera_screen.dart';
 import 'package:health/health.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import 'calorie_camera_screen.dart';
 import 'activity_detail_screen.dart';
 import 'sleep_tracker_screen.dart';
 import 'profile_screen.dart';
 import 'water_screen.dart';
+import '../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   static const routeName = '/home';
@@ -33,11 +38,44 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _requestPermissionsAndFetchData();
+    // Uygulama açılış mantığını başlat
+    _initAppLogic();
+  }
+
+  Future<void> _initAppLogic() async {
+    // 1. İzinleri ve Verileri Al (Bildirim, Alarm, Sağlık)
+    await _requestPermissionsAndFetchData();
+
+    // 2. Gerçek Günlük Hatırlatıcıları Kur (14:00 ve 20:00)
+    await NotificationService().setupDailyReminders();
+
+    // 3. 🚀 OTOMATİK TEST (10 SANİYE SONRA)
+    // Uygulama her açıldığında 10 saniye sonrasına test alarmı kurar.
+    // Test başarılı olduktan sonra bu satırı silebilirsiniz.
+    await NotificationService().scheduleAllSimulations();
   }
 
   Future<void> _requestPermissionsAndFetchData() async {
     try {
+      // --- A. BİLDİRİM VE ALARM İZİNLERİ (Android için Kritik) ---
+      if (Platform.isAndroid) {
+        final flutterLocalNotificationsPlugin =
+            FlutterLocalNotificationsPlugin();
+
+        // Bildirim izni iste
+        await flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission();
+
+        // Tam Zamanlı Alarm İzni (Android 12+ için şart)
+        if (await Permission.scheduleExactAlarm.isDenied) {
+          await Permission.scheduleExactAlarm.request();
+        }
+      }
+
+      // --- B. SAĞLIK (HEALTH) İZİNLERİ ---
       final types = [
         HealthDataType.STEPS,
         HealthDataType.ACTIVE_ENERGY_BURNED,
@@ -59,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await _fetchHealthData();
       }
     } catch (e) {
-      print('Hata: $e');
+      print('İzin/Veri Hatası: $e');
     }
   }
 
@@ -107,19 +145,23 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       double sleepHours = totalSleepMinutes / 60;
 
-      setState(() {
-        _stepCount = totalSteps;
-        if (sleepHours > 0) {
-          _sleepHours = sleepHours;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _stepCount = totalSteps;
+          if (sleepHours > 0) {
+            _sleepHours = sleepHours;
+          }
+        });
+      }
     } catch (e) {
       print('Veri çekme hatası: $e');
-      // Varsayılan değerleri kullan
-      setState(() {
-        _stepCount = 7236;
-        _sleepHours = 7.5;
-      });
+      if (mounted) {
+        // Varsayılan değerleri kullan
+        setState(() {
+          _stepCount = 7236;
+          _sleepHours = 7.5;
+        });
+      }
     }
   }
 
