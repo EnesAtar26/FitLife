@@ -11,6 +11,7 @@ plugins {
 dependencies {
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.0")
 
 
     // TODO: Add the dependencies for Firebase products you want to use
@@ -41,6 +42,14 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        ndk {
+        abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
+        packaging {
+        jniLibs {
+            pickFirsts.add("**/libonnxruntime.so")
+        }
+    }
     }
 
     buildTypes {
