@@ -1,73 +1,61 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class StreakService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final String? uid = FirebaseAuth.instance.currentUser?.uid;
 
+  // DÜZELTME 1: Dönüş tipi 'Future<void>' yerine 'Future<Map<String, dynamic>>' yapıldı
   Future<Map<String, dynamic>> checkAndUpdateStreak() async {
-    bool isLoggedIn = _auth.currentUser != null;
-    
+    // Kullanıcı yoksa boş değer dön
+    if (uid == null) return {'streak': 0, 'increased': false};
+
+    DocumentReference userRef = _db.collection('users').doc(uid);
+    DocumentSnapshot doc = await userRef.get();
+
+    if (!doc.exists) return {'streak': 0, 'increased': false};
+
     DateTime now = DateTime.now();
     DateTime today = DateTime(now.year, now.month, now.day);
     
-    DateTime? lastLoginDate;
-    int currentStreak = 0;
-
-    // --- VERİYİ ÇEK ---
-    if (isLoggedIn) {
-      String uid = _auth.currentUser!.uid;
-      DocumentSnapshot doc = await _db.collection('users').doc(uid).get();
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        if (data['lastLogin'] != null) {
-          lastLoginDate = (data['lastLogin'] as Timestamp).toDate();
-        }
-        currentStreak = data['streakCount'] ?? 0;
-      }
-    } else {
-      // Misafir Modu
-      final prefs = await SharedPreferences.getInstance();
-      String? dateStr = prefs.getString('lastLogin');
-      if (dateStr != null) lastLoginDate = DateTime.parse(dateStr);
-      currentStreak = prefs.getInt('streakCount') ?? 0;
-    }
-
-    // --- HESAPLAMA ---
-    bool hasIncreased = false;
+    // Verileri al
+    Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+    Timestamp? lastLoginTs = data?['lastLogin'];
+    int currentStreak = data?['streakCount'] ?? 0;
     
-    if (lastLoginDate != null) {
-      DateTime lastDateOnly = DateTime(lastLoginDate.year, lastLoginDate.month, lastLoginDate.day);
-      int difference = today.difference(lastDateOnly).inDays;
+    bool hasIncreased = false; 
+
+    if (lastLoginTs != null) {
+      DateTime lastLogin = lastLoginTs.toDate();
+      DateTime lastLoginDate = DateTime(lastLogin.year, lastLogin.month, lastLogin.day);
+
+      int difference = today.difference(lastLoginDate).inDays;
 
       if (difference == 1) {
-        currentStreak++; // Dün girmiş, seri arttı
-        hasIncreased = true;
+        // Seri devam ediyor
+        currentStreak++;
+        hasIncreased = true; 
       } else if (difference > 1) {
-        currentStreak = 1; // Gün kaçırmış, sıfırlandı
+        // Gün kaçmış, sıfırlandı
+        currentStreak = 1;
         hasIncreased = false;
       } else if (difference == 0) {
-        // Bugün zaten girmiş, değişiklik yok
+        // Bugün zaten girilmiş
         return {'streak': currentStreak, 'increased': false};
       }
     } else {
-      currentStreak = 1; // İlk giriş
-      hasIncreased = true;
+      // İlk giriş
+      currentStreak = 1;
+      hasIncreased = true; 
     }
 
-    // --- VERİYİ KAYDET ---
-    if (isLoggedIn) {
-      await _db.collection('users').doc(_auth.currentUser!.uid).update({
-        'lastLogin': Timestamp.fromDate(today),
-        'streakCount': currentStreak,
-      });
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('lastLogin', today.toIso8601String());
-      await prefs.setInt('streakCount', currentStreak);
-    }
-
+    // Veritabanını güncelle
+    await userRef.update({
+      'lastLogin': Timestamp.fromDate(today),
+      'streakCount': currentStreak,
+    });
+    
+    // DÜZELTME 2: Hesaplanan sonucu UI tarafına döndürüyoruz
     return {
       'streak': currentStreak,
       'increased': hasIncreased

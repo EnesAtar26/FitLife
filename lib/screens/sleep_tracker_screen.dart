@@ -97,13 +97,13 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
   }
 
   void _showManualSleepDialog(int dayIndex) {
-    double hours = sleepData[dayIndex];
-    double minutes = ((sleepData[dayIndex] % 1) * 60).toInt().toDouble();
+    double hours = sleepData[dayIndex].truncateToDouble();
+    double minutes = ((sleepData[dayIndex] % 1) * 60).roundToDouble();
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           title: const Text('Uyku Süresi Ekle'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -114,9 +114,9 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                 min: 0,
                 max: 12,
                 divisions: 24,
-                label: '${hours.toStringAsFixed(1)} sa',
+                label: '${hours.toStringAsFixed(0)} sa',
                 onChanged: (value) {
-                  setState(() {
+                  setDialogState(() {
                     hours = value;
                   });
                 },
@@ -129,7 +129,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                 divisions: 59,
                 label: '${minutes.toStringAsFixed(0)} dk',
                 onChanged: (value) {
-                  setState(() {
+                  setDialogState(() {
                     minutes = value;
                   });
                 },
@@ -144,7 +144,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  sleepData[dayIndex] = hours + (minutes / 60);
+                  sleepData[dayIndex] = hours + (minutes / 60.0);
                 });
                 Navigator.pop(context);
               },
@@ -183,7 +183,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.bedtime, color: Colors.purple, size: 28),
+                    Icon(Icons.bedtime, color: Theme.of(context).primaryColor, size: 28),
                     const SizedBox(width: 12),
                     Text(
                       'Uyku Takibi',
@@ -201,14 +201,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.fromRGBO(156, 39, 176, 1),
-                        Color.fromRGBO(142, 36, 170, 1),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -229,7 +222,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                               Text(
                                 'Dün Gece',
                                 style: Theme.of(context).textTheme.bodyLarge
-                                    ?.copyWith(color: Colors.white),
+                                    ,
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -237,7 +230,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: Colors.black54,
                                 ),
                               ),
                             ],
@@ -250,7 +243,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                             ),
                             child: const Icon(
                               Icons.bedtime,
-                              color: Colors.white,
+                              color: Colors.black87,
                               size: 32,
                             ),
                           ),
@@ -263,7 +256,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                           _SleepStat(
                             label: 'Hedef',
                             value: '${goal.toStringAsFixed(1)} sa',
-                            color: Colors.white,
+                            color: Colors.black87,
                           ),
                           _SleepStat(
                             label: 'Fark',
@@ -271,13 +264,13 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                                 ? '+${(todaySleep - goal).toStringAsFixed(1)} sa'
                                 : '-${(goal - todaySleep).toStringAsFixed(1)} sa',
                             color: todaySleep >= goal
-                                ? Colors.greenAccent
-                                : Colors.redAccent,
+                                ? Colors.green
+                                : Colors.red,
                           ),
                           _SleepStat(
                             label: 'Kalite',
                             value: 'İyi',
-                            color: Colors.white,
+                            color: Colors.black87,
                           ),
                         ],
                       ),
@@ -299,7 +292,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                         'Çubuğa tıkla →',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.purple,
+                          color: const Color.fromARGB(255, 48, 48, 48),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -328,10 +321,19 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                     height: 250,
                     child: BarChart(
                       BarChartData(
-                        maxY: 10,
+                        maxY: 12,
                         minY: 0,
                         barTouchData: BarTouchData(
                           enabled: true,
+                          handleBuiltInTouches:true,
+                          touchCallback:(FlTouchEvent event, barTouchResponse){
+                            if(barTouchResponse==null || barTouchResponse.spot==null) return;
+                            if(event is FlTapUpEvent){
+                              final barIndex=barTouchResponse.spot!.touchedBarGroupIndex;
+
+                              if(!hasHealthData) _showManualSleepDialog(barIndex);
+                            }
+                          },
                           touchTooltipData: BarTouchTooltipData(
                             tooltipPadding: const EdgeInsets.all(8),
                             getTooltipItem: (group, groupIndex, rod, rodIndex) {
@@ -344,16 +346,7 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                               );
                             },
                           ),
-                          handleBuiltInTouches: true,
-                          touchCallback: (event, response) {
-                            if (response?.spot != null) {
-                              final barIndex =
-                                  response!.spot!.touchedBarGroupIndex;
-                              if (!hasHealthData) {
-                                _showManualSleepDialog(barIndex);
-                              }
-                            }
-                          },
+                          
                         ),
                         gridData: FlGridData(
                           show: true,
@@ -373,8 +366,8 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                               BarChartRodData(
                                 toY: sleepData[i],
                                 color: i == todayIndex
-                                    ? Colors.purple[500]
-                                    : Colors.purple[300],
+                                    ? Theme.of(context).primaryColor
+                                    : Theme.of(context).shadowColor,
                                 width: 20,
                                 borderRadius: BorderRadius.circular(6),
                               ),
@@ -431,59 +424,6 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Uyku aşamaları
-                Text(
-                  'Uyku Aşamaları',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 15,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      _SleepPhase(
-                        label: 'Hafif Uyku',
-                        duration: '2h 15m',
-                        percentage: 32,
-                        color: Colors.blue,
-                      ),
-                      const Divider(height: 20),
-                      _SleepPhase(
-                        label: 'Derin Uyku',
-                        duration: '1h 45m',
-                        percentage: 25,
-                        color: Colors.purple,
-                      ),
-                      const Divider(height: 20),
-                      _SleepPhase(
-                        label: 'REM Uyku',
-                        duration: '1h 30m',
-                        percentage: 21,
-                        color: Colors.orange,
-                      ),
-                      const Divider(height: 20),
-                      _SleepPhase(
-                        label: 'Uykusuzluk',
-                        duration: '1h 30m',
-                        percentage: 22,
-                        color: Colors.grey,
-                      ),
-                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -631,9 +571,9 @@ class _TipCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: Color.fromRGBO(202, 245, 204, 1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(color: Color.fromRGBO(116, 163, 118, 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

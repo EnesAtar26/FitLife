@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "971334780772",
+    "project_id": "fitlife-de906",
+    "storage_bucket": "fitlife-de906.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:971334780772:android:bcffa95f1fe2c8d2a3dc71",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_6"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbb91bYYLxhDVHneYO9ea8edko9xygzoQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

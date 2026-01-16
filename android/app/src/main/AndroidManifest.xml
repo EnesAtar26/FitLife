@@ -3,6 +3,11 @@
     <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.HEALTH" />
     <uses-permission android:name="android.permission.READ_HEALTH_DATA" />
+    <uses-permission android:name="android.permission.BODY_SENSORS"/>
+    
+    <uses-permission android:name="android.permission.health.READ_STEPS"/>
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED"/>
+    <uses-permission android:name="android.permission.health.READ_SLEEP"/>
     
     <application
         android:label="flutter_application_6"

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
@@ -27,7 +28,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
       _eatenFoods.fold(0, (sum, item) => sum + (item['calories'] as int));
 
   // NOT: API Key'inizi güvenli tutun.
-  final String apiKey = 'AIzaSyC_jcgIuq1avGRm4sVMKt4mvXKfSij8Hu8';
+  final String apiKey = dotenv.env["API_KEY"] ?? "";
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -93,7 +94,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
       });
     } catch (e) {
       setState(() {
-        _resultText = "Bağlantı hatası: Lütfen internetinizi kontrol edin.";
+        _resultText = "Bağlantı hatası: Lütfen internetinizi kontrol edin." + e.toString();
       });
     } finally {
       setState(() {
@@ -147,9 +148,9 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.restaurant_menu,
-                      color: Colors.orange,
+                      color: Colors.orange[400],
                       size: 28,
                     ),
                     const SizedBox(width: 12),
@@ -170,18 +171,23 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.orange.shade400,
-                        Colors.deepOrange.shade600,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Colors.white,
+                    // gradient: LinearGradient(
+                    //   colors: [
+                    //     Colors.orange.shade200,
+                    //     Colors.deepOrange.shade200,
+                    //   ],
+                    //   begin: Alignment.topLeft,
+                    //   end: Alignment.bottomRight,
+                    // ),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    width: 1,
+                  ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orange.withOpacity(0.3),
+                        color: Colors.orange.withValues(alpha: 0.2),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -196,7 +202,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                           Text(
                             'Bugün Alınan',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: Colors.black87,
                               fontSize: 14,
                             ),
                           ),
@@ -204,7 +210,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                           Text(
                             'Toplam Kalori',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.black87,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -214,7 +220,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                       Text(
                         '$_totalCalories kcal',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.black87,
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
                         ),
@@ -274,7 +280,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                         context,
                         icon: Icons.camera_alt,
                         label: 'Kamera',
-                        color: Colors.orange,
+                        color: Colors.orangeAccent,
                         onTap: () => _pickImage(ImageSource.camera),
                       ),
                     ),
@@ -284,7 +290,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                         context,
                         icon: Icons.photo_library,
                         label: 'Galeri',
-                        color: Colors.blue,
+                        color: Colors.blueAccent,
                         onTap: () => _pickImage(ImageSource.gallery),
                       ),
                     ),

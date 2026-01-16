@@ -67,7 +67,7 @@ class _WaterScreenState extends State<WaterScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.water_drop, color: Colors.blue, size: 28),
+                  Icon(Icons.water_drop, color: Colors.blue[400], size: 28),
                   const SizedBox(width: 12),
                   Text(
                     'Su Takibi',
@@ -102,7 +102,7 @@ class _WaterScreenState extends State<WaterScreen> {
                   children: [
                     Column(
                       children: [
-                        Icon(Icons.flag, color: Colors.blue, size: 28),
+                        Icon(Icons.flag, color: Colors.blue[400], size: 28),
                         const SizedBox(height: 8),
                         Text(
                           'Hedef',
@@ -129,7 +129,7 @@ class _WaterScreenState extends State<WaterScreen> {
                           Icons.water_drop,
                           color: waterData[todayIndex].toInt() >= goal
                               ? Colors.green
-                              : Colors.red,
+                              : Colors.red[400],
                           size: 28,
                         ),
                         const SizedBox(height: 8),
@@ -276,7 +276,7 @@ class _WaterScreenState extends State<WaterScreen> {
                                             waterData[i].toInt() >= goal
                                         ? Colors.green[500]
                                         : i == todayx
-                                        ? Colors.orange[400]
+                                        ? Colors.green[200]
                                         : waterData[i].toInt() < goal
                                         ? Colors.blue.withValues(alpha: 0.5)
                                         : Colors.blue,
@@ -347,28 +347,20 @@ class _WaterScreenState extends State<WaterScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Hedefi Düzenle'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
+        content: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: goalController,
-              decoration: InputDecoration(
-                labelText: 'Hedef (sayı)',
-                hintText: 'Örn: 8',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: unitController,
-              decoration: InputDecoration(
-                labelText: 'Ölçek (birim)',
-                hintText: 'Örn: bardak / litre',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+            Expanded(
+              child: TextField(
+                controller: goalController,
+                keyboardType: TextInputType.number, // Sadece sayı klavyesi
+                decoration: InputDecoration(
+                  labelText: 'Hedef',
+                  // DOĞRUSU BU: Birimi kutunun içine sağ tarafa ekler
+                  suffixText: 'bardak',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ),
