@@ -7,6 +7,9 @@ import 'screens/water_screen.dart';
 import 'screens/activity_detail_screen.dart';
 import 'screens/sleep_tracker_screen.dart';
 import 'screens/profile_screen.dart';
+import 'services/session_manager.dart';
+import "package:flutter_dotenv/flutter_dotenv.dart";
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,6 +17,17 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
+  Future<Widget> _getStartScreen() async {
+    // Hem Firebase kullanıcısı var mı, hem de Local Session var mı bak
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final localSession = await SessionManager.getUserId();
+
+    if (firebaseUser != null || localSession != null) {
+      return const HomeScreen();
+    }
+    return const OnboardingScreen();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +55,7 @@ class MyApp extends StatelessWidget {
         WaterScreen.routeName: (_) => const WaterScreen(),
         ActivityDetailScreen.routeName: (_) => const ActivityDetailScreen(),
         SleepTrackerScreen.routeName: (_) => const SleepTrackerScreen(),
-        ProfileScreen.routeName: (_) => const ProfileScreen(),
+        ProfileScreen.routeName: (_) => ProfileScreen(),
       },
     );
   }

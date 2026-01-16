@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../services/user_data_service.dart';
 
 class WaterScreen extends StatefulWidget {
   static const routeName = '/water';
@@ -12,6 +13,8 @@ class WaterScreen extends StatefulWidget {
 }
 
 class _WaterScreenState extends State<WaterScreen> {
+  final UserDataService _dataService = UserDataService();
+  int _todayWater = 0;
   List<int> waterData = [-1, 3, 5, 8, 6, 10, 3];
   String unit = 'bardak';
   int goal = 8;
@@ -21,10 +24,27 @@ class _WaterScreenState extends State<WaterScreen> {
     return (wd - 1) % 7;
   }
 
-  void _addWater() {
+  @override
+  void initState() {
+    super.initState();
+    _loadWaterData();
+  }
+
+  Future<void> _loadWaterData() async {
+    int count = await _dataService.getTodayWaterCount();
     setState(() {
-      final idx = todayIndex;
-      waterData[idx] = (waterData[idx] + 1);
+      _todayWater = count;
+    });
+  }
+
+  void _addWater() async {
+    // 1. Veritabanına ekle
+    await _dataService.addWaterLog(1);
+    
+    // 2. Ekranı güncelle
+    setState(() {
+      _todayWater += 1;
+      // Grafik verilerini de güncellemek gerekir (basitleştirilmiş)
     });
   }
 
@@ -122,7 +142,7 @@ class _WaterScreenState extends State<WaterScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${waterData[todayIndex].toInt()} $unit',
+                          '$_todayWater $unit',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../services/user_data_service.dart';
 
 class ActivityDetailScreen extends StatefulWidget {
   static const routeName = '/activity-detail';
@@ -51,7 +52,41 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     },
   ];
 
+  final UserDataService _dataService = UserDataService();
   List<Map<String, dynamic>> addedActivities = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActivities();
+  }
+
+  Future<void> _loadActivities() async {
+    var list = await _dataService.getTodayActivities();
+    
+    // UI için icon ve renkleri eşleştirmemiz gerek (Veritabanında tutulmuyor)
+    List<Map<String, dynamic>> uiList = list.map((data) {
+      // İkon ve rengi bul (activities listesinden)
+      var refItem = activities.firstWhere(
+          (a) => a['name'] == data['name'], 
+          orElse: () => activities[0]
+      );
+      
+      return {
+        'name': data['name'],
+        'duration': data['duration'], // db'den gelen isim farklıysa düzelt
+        'calories': data['calories'],
+        'icon': refItem['icon'],
+        'color': refItem['color']
+      };
+    }).toList();
+
+    if (mounted) {
+      setState(() {
+        addedActivities = uiList;
+      });
+    }
+  }
 
   void _showAddActivityDialog() {
     String selectedActivity = activities.first['name'];
@@ -112,21 +147,14 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               child: const Text('İptal'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final activity = activities.firstWhere(
                   (a) => a['name'] == selectedActivity,
                 );
                 final calories = (activity['calories'] * duration) ~/ 60;
 
-                this.setState(() {
-                  addedActivities.add({
-                    'name': selectedActivity,
-                    'duration': duration,
-                    'calories': calories,
-                    'icon': activity['icon'],
-                    'color': activity['color'],
-                  });
-                });
+                await _dataService.addActivity(selectedActivity, duration, calories); 
+                _loadActivities();
                 Navigator.pop(context);
               },
               child: const Text('Ekle'),

@@ -1,19 +1,56 @@
 import 'package:flutter/material.dart';
+import 'settings_screen.dart';
+import 'update_profile_info_screen.dart';
+import 'reminder_edit_screen.dart';
+import '../services/user_data_service.dart';
 
+
+// Profile screen implementation approximating the provided mockup.
+// Drop this file into `lib/profile_screen.dart` and use ProfileScreen() in your app.
+
+// ---------------- SETTINGS SCREEN ----------------
+
+
+// ---------------- PROFILE SCREEN ----------------
 class ProfileScreen extends StatefulWidget {
   static const routeName = '/profile';
-  final VoidCallback? onBack;
-
-  const ProfileScreen({super.key, this.onBack});
+  ProfileScreen({super.key});
+  
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool notificationsEnabled = true;
-  bool privateAccount = false;
-  String language = 'Türkçe';
+  // Mocked user data
+  final UserDataService _dataService = UserDataService();
+  String name = 'Yükleniyor...';
+  String subtitle = '';
+  int waterGlasses = 0;
+  int steps = 0;
+  int calories = 0;
+  Duration sleep = const Duration(hours: 0, minutes: 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileData();
+  }
+
+  Future<void> _loadProfileData() async {
+    final profile = await _dataService.getUserProfile();
+    final water = await _dataService.getTodayWaterCount();
+    
+    if (mounted) {
+      setState(() {
+        name = "${profile['first_name']} ${profile['last_name']}";
+        int age = profile['age'] ?? 0;
+        int weight = profile['weight_kg'] ?? 0;
+        subtitle = "Yaş: $age • ${weight}kg";
+        waterGlasses = water;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

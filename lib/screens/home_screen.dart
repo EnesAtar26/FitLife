@@ -6,6 +6,7 @@ import 'activity_detail_screen.dart';
 import 'sleep_tracker_screen.dart';
 import 'profile_screen.dart';
 import 'water_screen.dart';
+import "package:flutter_application_6/services/user_data_service.dart";
 
 class HomeScreen extends StatefulWidget {
   static const routeName = '/home';
@@ -21,20 +22,85 @@ class _HomeScreenState extends State<HomeScreen> {
   double _sleepHours = 7.5; // Varsayılan uyku saati
   final Health health = Health();
 
+  // Streak Verisi
+  int _streakCount = 0;
+  final StreakService _streakService = StreakService();
+
+  final UserDataService _userDataService = UserDataService();
+  String _userName="";
+  // Kalori Grafiği Verileri
+  int _dailyCalorieGoal = 2000; // Varsayılan, Firebase'den güncellenecek
+  // Haftalık veriler (Pzt - Paz). Gerçekte veritabanından çekilmeli.
+  List<double> _weeklyCalories = [0, 0, 0, 0, 0, 0, 0];
+
+
+
+  // Ekran Listesi
   late final List<Widget> _screens = [
-    _buildDashboard(context),
-    SleepTrackerScreen(),
-    ActivityDetailScreen(),
-    WaterScreen(),
-    FoodAnalysisScreen(),
-    ProfileScreen()
+    _buildDashboard(context), // 0: Dashboard
+    const SleepTrackerScreen(), // 1: Uyku
+    const ActivityDetailScreen(), // 2: Aktivite
+    const WaterScreen(),          // 3: Su
+    const FoodAnalysisScreen(),   // 4: Yemek
+    ProfileScreen(),        // 5: Profil
   ];
 
   @override
   void initState() {
     super.initState();
-    _requestPermissionsAndFetchData();
+    _requestPermissionsAndFetchData(); // Sağlık verilerini çek
+    _checkStreak(); // Seriyi kontrol et
+    _fetchUserData(); // Hedef kaloriyi çek
   }
+
+  // --- 1. VERİ ÇEKME ---
+  Future<void> _fetchUserData() async {
+    // 1. Profil Bilgilerini Çek (İsim için)
+    final userProfile = await _userDataService.getUserProfile();
+    
+    // 2. Diğer Veriler
+    final goal = await _userDataService.getDailyCalorieGoal();
+    final weeklyData = await _userDataService.getWeeklyCalories();
+
+    if (mounted) {
+      setState(() {
+        _userName = userProfile['first_name'] ?? 'Kullanıcı'; // İsim ataması
+        _dailyCalorieGoal = goal;
+        _weeklyCalories = weeklyData;
+      });
+    }
+  }
+
+  // --- 2. STREAK (SERİ) MANTIĞI ---
+  Future<void> _checkStreak() async {
+    try {
+      // Servisten sonucu al: { 'streak': 5, 'increased': true }
+      Map<String, dynamic> result = await _streakService.checkAndUpdateStreak();
+
+      int newStreak = result['streak'];
+      bool isIncreased = result['increased'];
+
+      setState(() {
+        _streakCount = newStreak;
+      });
+
+      // Eğer seri bugün arttıysa kutlama yap
+      if (isIncreased && mounted) {
+        Future.delayed(const Duration(seconds: 1), () {
+          _showStreakCelebration(context, newStreak);
+        });
+      }
+    } catch (e) {
+      debugPrint("Streak hatası: $e");
+    }
+  }
+
+  // --- 3. HEALTH (SAĞLIK) VERİLERİ ---
+  
+  // Platforma göre uyku veri tipini seç
+  HealthDataType get _sleepType => Platform.isAndroid
+      ? HealthDataType.SLEEP_ASLEEP   // Android (Health Connect)
+      : HealthDataType.SLEEP_IN_BED;  // iOS (HealthKit)
 
   Future<void> _requestPermissionsAndFetchData() async {
     try {
@@ -111,14 +177,76 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       });
     } catch (e) {
-      print('Veri çekme hatası: $e');
-      // Varsayılan değerleri kullan
-      setState(() {
-        _stepCount = 7236;
-        _sleepHours = 7.5;
-      });
+      debugPrint('Veri çekme hatası: $e');
     }
   }
+
+  // --- 4. DİYALOGLAR (POP-UP) ---
+
+  // Hedef Kalori Düzenleme
+  void _showEditGoalDialog() {
+    TextEditingController controller = TextEditingController(text: _dailyCalorieGoal.toString());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Günlük Hedefi Düzenle'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Hedef (kcal)', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.isNotEmpty) {
+                int newGoal = int.tryParse(controller.text) ?? _dailyCalorieGoal;
+                setState(() => _dailyCalorieGoal = newGoal);
+                
+                await _userDataService.saveDailyCalorieGoal(newGoal);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Grafik Üzerindeki Günü Düzenleme
+  void _showEditDayCalorieDialog(int index) {
+    const days = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+    TextEditingController controller = TextEditingController(text: _weeklyCalories[index].toInt().toString());
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${days[index]} Verisi'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(labelText: 'Alınan Kalori', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.isNotEmpty) {
+                double newVal = double.tryParse(controller.text) ?? _weeklyCalories[index];
+                setState(() => _weeklyCalories[index] = newVal);
+                await _userDataService.saveWeeklyCalories(_weeklyCalories);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Güncelle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 5. ARAYÜZ (UI) ---
 
   Widget _buildDashboard(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
@@ -132,9 +260,34 @@ class _HomeScreenState extends State<HomeScreen> {
             Center(
               child: Column(
                 children: [
-                  Text('Günaydın, Ayşe ☀️', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[900])),
-                  const SizedBox(height: 4),
-                  Text('8 Kasım 2025, Cumartesi', style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Günaydın, $_userName ☀️', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[900])),
+                      const SizedBox(height: 4),
+                      Text('Bugün harika görünüyorsun!', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    ],
+                  ),
+                  // Streak Rozeti
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.local_fire_department, color: Colors.orange, size: 24),
+                        const SizedBox(width: 4),
+                        Text('$_streakCount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.orange)),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pushNamed('/profile'),
+                    child: CircleAvatar(backgroundColor: Colors.green[50], child: Icon(Icons.person, color: color)),
+                  ),
                 ],
               ),
             ),

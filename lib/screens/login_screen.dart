@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_6/screens/offline_setup_screen.dart';
+import 'package:flutter_application_6/services/user_data_service.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/firebase_authService.dart';
+import '../database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_6/services/session_manager.dart';
 
 class LoginScreen extends StatefulWidget {
   static const routeName = '/login';
@@ -25,7 +32,41 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() {
     if (_formKey.currentState?.validate() ?? false) {
       // For demo purposes we just go to Home
+      submit();
+    }
+  }
+
+  void _loginGuest() async {
+      // Misafir olduğunu kaydet (örneğin ID'yi -1 yapalım)
+      await SessionManager.saveUserId(-1); 
+      if(mounted) {
+         Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+      }
+  }
+
+  void _loginOffline() async {
+    setState(() => loading = true);
+    
+    // 1. Session Manager'a misafir olduğunu bildir (-1 gibi bir ID ile)
+    // Eğer SessionManager kullanıyorsanız:
+    await SessionManager.saveUserId(-1); 
+
+    // 2. Profil kontrolü yap
+    final userDataService = UserDataService();
+    bool hasProfile = await userDataService.hasOfflineProfile();
+
+    if (!mounted) return;
+    setState(() => loading = false);
+
+    if (hasProfile) {
+      // Profil var, direkt ana ekrana
       Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+    } else {
+      // Profil yok, kurulum ekranına
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const OfflineSetupScreen()),
+      );
     }
   }
 
@@ -133,7 +174,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Text('Kayıt ol', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
                               )
                             ],
-                          )
+                          ),
+                          const SizedBox(height: 1),
+                          TextButton(
+                              onPressed: _loginOffline,
+                              child: Text('Çevrimdışı olarak devam et', style: TextStyle(color: color))
+                          ),
                         ],
                       ),
                     ),
