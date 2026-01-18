@@ -264,7 +264,7 @@ class DatabaseHelper {
       'activities',
       activity.toMap(),
       where: 'id = ?',
-      whereArgs: [activity.id],
+      whereArgs: [activity.activityId],
     );
   }
 

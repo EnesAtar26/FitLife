@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:flutter_application_6/services/session_manager.dart'; // SessionManager importu
 
 class FoodAnalysisScreen extends StatefulWidget {
   const FoodAnalysisScreen({super.key});
@@ -16,19 +17,37 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
   bool _isLoading = false;
   String? _resultText;
 
-  // Analizden çekilen geçici veriler
   String? _detectedFoodName;
   int? _detectedCalories;
 
-  // Günlük yenen yemeklerin listesi (Hafızada tutulur)
-  final List<Map<String, dynamic>> _eatenFoods = [];
+  // Listeyi final yapmıyoruz, çünkü veritabanından dolacak
+  List<Map<String, dynamic>> _eatenFoods = [];
 
-  // Toplam kaloriyi hesaplayan getter
   int get _totalCalories =>
       _eatenFoods.fold(0, (sum, item) => sum + (item['calories'] as int));
 
-  // NOT: API Key'inizi güvenli tutun.
   final String apiKey = dotenv.env["API_KEY"] ?? "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDailyFoods(); // Uygulama açılınca verileri yükle
+  }
+
+  // --- VERİ YÜKLEME ---
+  Future<void> _loadDailyFoods() async {
+    final foods = await SessionManager.getFoodLog();
+    if (mounted) {
+      setState(() {
+        _eatenFoods = foods;
+      });
+    }
+  }
+
+  // --- VERİ KAYDETME YARDIMCISI ---
+  Future<void> _saveData() async {
+    await SessionManager.saveFoodLog(_eatenFoods);
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -37,7 +56,6 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
     if (pickedFile != null) {
       setState(() {
         _selectedImage = File(pickedFile.path);
-        // Yeni fotoğraf seçildiğinde eski analiz sonucunu temizliyoruz
         _resultText = null;
         _detectedFoodName = null;
         _detectedCalories = null;
@@ -53,7 +71,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
 
     try {
       final model = GenerativeModel(
-        model: 'gemini-2.5-flash-lite',
+        model: 'gemini-2.5-flash',
         apiKey: apiKey,
       );
 
@@ -76,7 +94,6 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
 
       final text = response.text ?? "";
 
-      // Basit Regex ile veri çekme
       String foodName = "Bilinmeyen Yemek";
       int calories = 0;
 
@@ -84,8 +101,9 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
       final calMatch = RegExp(r"Kalori:\s*(\d+)").firstMatch(text);
 
       if (nameMatch != null) foodName = nameMatch.group(1) ?? "";
-      if (calMatch != null)
+      if (calMatch != null) {
         calories = int.tryParse(calMatch.group(1) ?? "0") ?? 0;
+      }
 
       setState(() {
         _resultText = response.text;
@@ -94,7 +112,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
       });
     } catch (e) {
       setState(() {
-        _resultText = "Bağlantı hatası: Lütfen internetinizi kontrol edin." + e.toString();
+        _resultText = "Hata: $e";
       });
     } finally {
       setState(() {
@@ -103,7 +121,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
     }
   }
 
-  // Listeye ekleme fonksiyonu
+  // --- LİSTEYE EKLEME ---
   void _addFoodToList() {
     if (_detectedFoodName != null && _detectedCalories != null) {
       setState(() {
@@ -112,10 +130,10 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
           'calories': _detectedCalories,
           'time': DateTime.now(),
         });
-        // İpucu: Analiz sonucu ekranda kalsın istendiği için _resultText'i temizlemiyoruz.
       });
+      
+      _saveData(); // <--- VERİYİ KAYDET
 
-      // Ufak bir bildirim göster
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$_detectedFoodName listeye eklendi!'),
@@ -126,11 +144,12 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
     }
   }
 
-  // Listeden silme fonksiyonu
+  // --- LİSTEDEN SİLME ---
   void _removeFood(int index) {
     setState(() {
       _eatenFoods.removeAt(index);
     });
+    _saveData(); // <--- GÜNCEL HALİNİ KAYDET
   }
 
   @override
@@ -144,7 +163,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- ÜST KISIM (HEADER & ÖZET) ---
+                // Header
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -166,28 +185,20 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // --- GÜNLÜK ÖZET KARTI (YENİ) ---
+                // ÖZET KARTI
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    // gradient: LinearGradient(
-                    //   colors: [
-                    //     Colors.orange.shade200,
-                    //     Colors.deepOrange.shade200,
-                    //   ],
-                    //   begin: Alignment.topLeft,
-                    //   end: Alignment.bottomRight,
-                    // ),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                    color: Colors.orange.withValues(alpha: 0.15),
-                    width: 1,
-                  ),
+                      color: Colors.orange.withOpacity(0.15),
+                      width: 1,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orange.withValues(alpha: 0.2),
+                        color: Colors.orange.withOpacity(0.2),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -230,10 +241,10 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- KAMERA/FOTOĞRAF ALANI ---
+                // KAMERA/FOTOĞRAF
                 Container(
                   width: double.infinity,
-                  height: 250, // Biraz kısalttım ki liste sığsın
+                  height: 250,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -272,7 +283,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // --- BUTONLAR ---
+                // BUTONLAR
                 Row(
                   children: [
                     Expanded(
@@ -298,7 +309,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- ANALİZ SONUCU VE EKLEME ---
+                // YÜKLENİYOR / SONUÇ
                 if (_isLoading)
                   Center(
                     child: Column(
@@ -369,7 +380,6 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            // --- LİSTEYE EKLE BUTONU ---
                             if (_detectedFoodName != null)
                               SizedBox(
                                 width: double.infinity,
@@ -398,7 +408,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 const SizedBox(height: 30),
                 const Divider(),
 
-                // --- BUGÜN YENİLENLER LİSTESİ ---
+                // BUGÜN YENİLENLER LİSTESİ
                 if (_eatenFoods.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Text(
@@ -406,19 +416,16 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
-
-                  // Liste Elemanları
                   ListView.builder(
-                    physics:
-                        const NeverScrollableScrollPhysics(), // Sayfa zaten kayıyor
-                    shrinkWrap: true, // İçeriği kadar yer kapla
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
                     itemCount: _eatenFoods.length,
                     itemBuilder: (context, index) {
                       final food = _eatenFoods[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Dismissible(
-                          key: Key("${food['name']}_$index"),
+                          key: Key("${food['name']}_${food['time']}"), // Benzersiz key
                           direction: DismissDirection.endToStart,
                           onDismissed: (_) => _removeFood(index),
                           background: Container(
@@ -492,7 +499,6 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
     );
   }
 
-  // Buton Tasarım Yardımcısı
   Widget _buildActionButton(
     BuildContext context, {
     required IconData icon,

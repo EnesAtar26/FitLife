@@ -49,7 +49,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil Bilgileri')),
+      appBar: AppBar(title: const Text('Profil Bilgileri (yapım aşamasında)',style: TextStyle(fontSize: 16))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(

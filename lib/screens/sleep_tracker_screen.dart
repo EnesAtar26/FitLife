@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:health/health.dart';
+import 'package:flutter_application_6/services/session_manager.dart';
+import '../database//firebase_dataBase.dart';
 
 class SleepTrackerScreen extends StatefulWidget {
   static const routeName = '/sleep-tracker';
@@ -13,126 +15,113 @@ class SleepTrackerScreen extends StatefulWidget {
 }
 
 class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
-  // Haftalık uyku süreleri (örnek veriler)
-  List<double> sleepData = [7.2, 6.8, 8.1, 7.5, 6.9, 7.8, 7.0];
-  double goal = 8.0;
-  final Health health = Health();
+  // Grafik verisi: [6 gün önce, ..., Dün, Bugün]
+  List<double> sleepData = List.filled(7, 0.0);
+  double goal = 8.0; 
   bool isLoading = true;
-  bool hasHealthData = false; // Health verisi var mı
+  final double chartMaxY = 14.0; 
 
   @override
   void initState() {
     super.initState();
-    _fetchSleepData();
+    _loadSleepData();
   }
 
-  Future<void> _fetchSleepData() async {
+  Future<void> _loadSleepData() async {
     try {
-      // Varsayılan verilerle başla - timeout olursa bunları kullan
-      List<double> weekData = [7.2, 6.8, 8.1, 7.5, 6.9, 7.8, 7.0];
+      final sleepMap = await SessionManager.getSleepLog();
+      final now = DateTime.now();
 
-      try {
-        final now = DateTime.now();
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((user) => user != null);
 
-        // Timeout ile tüm veri çekme işlemini sarıp al
-        await Future.delayed(
-          const Duration(milliseconds: 100),
-        ); // Permissionlar için zaman ver
+      final user_id = user!.uid;
 
-        // Geçen 7 günün uyku verilerini al (timeout ile)
-        for (int i = 0; i < 7; i++) {
-          try {
-            final dayStart = startOfWeek.add(Duration(days: i));
-            final dayEnd = dayStart.add(const Duration(days: 1));
+      List<double> loadedData = await FirebaseDatabaseService(uid: user_id).getWeeklySleep();;
 
-            final sleepPoints = await health
-                .getHealthDataFromTypes(
-                  startTime: dayStart,
-                  endTime: dayEnd,
-                  types: [HealthDataType.SLEEP_IN_BED],
-                )
-                .timeout(const Duration(seconds: 2));
-
-            double dayMinutes = 0;
-            for (var point in sleepPoints) {
-              if (point.value is NumericHealthValue) {
-                dayMinutes += (point.value as NumericHealthValue) as double;
-              }
-            }
-
-            if (dayMinutes > 0) {
-              weekData[i] = dayMinutes / 60;
-            }
-          } catch (e) {
-            print('Gün $i uyku verisi hatası: $e');
-            // Bu gün için varsayılan değeri kullan
-          }
-        }
-      } catch (e) {
-        print('Genel veri çekme hatası: $e');
-        // Varsayılan verilerle devam et
+      for (int i = 6; i >= 0; i--) {
+        DateTime date = now.subtract(Duration(days: i));
+        String key = _formatDate(date);
+        loadedData.add(sleepMap[key] ?? 0.0);
       }
 
       if (mounted) {
         setState(() {
-          sleepData = weekData;
-          hasHealthData = false; // Varsayılan değerleri kullan
+          sleepData = loadedData;
           isLoading = false;
         });
       }
     } catch (e) {
-      print('Uyku verisi çekme hatası: $e');
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  int get todayIndex {
-    final wd = DateTime.now().weekday;
-    return (wd - 1) % 7;
+  Future<void> _saveSleepEntry(double hours) async {
+    try {
+      final sleepMap = await SessionManager.getSleepLog();
+      
+      // Bugünün tarihi
+      DateTime date = DateTime.now();
+      String key = _formatDate(date);
+
+      sleepMap[key] = hours; 
+      await SessionManager.saveSleepLog(sleepMap);
+
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((user) => user != null);
+
+      final user_id = user!.uid;
+      await FirebaseDatabaseService(uid: user_id).updateTodaySleep(hours);
+
+      
+      _loadSleepData(); 
+    } catch (e) {
+      debugPrint("Hata: $e");
+    }
   }
 
-  void _showManualSleepDialog(int dayIndex) {
-    double hours = sleepData[dayIndex];
-    double minutes = ((sleepData[dayIndex] % 1) * 60).toInt().toDouble();
+  String _formatDate(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
+  // Sadece Bugün İçin Diyalog
+  void _showTodaySleepDialog() {
+    // Listenin son elemanı (index 6) bugündür
+    double currentVal = sleepData.last; 
+    double hours = currentVal.truncateToDouble();
+    double minutes = ((currentVal % 1) * 60).roundToDouble();
+
+    DateTime now = DateTime.now();
+    String dateStr = "${now.day}.${now.month}.${now.year}";
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Uyku Süresi Ekle'),
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('$dateStr\nUyku Süresi'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Saat: ${hours.toInt()} sa'),
+              Text('${hours.toInt()} sa ${minutes.toInt()} dk', 
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue)),
+              const SizedBox(height: 24),
+              
+              const Align(alignment: Alignment.centerLeft, child: Text("Saat", style: TextStyle(color: Colors.grey))),
               Slider(
                 value: hours,
-                min: 0,
-                max: 12,
-                divisions: 24,
-                label: '${hours.toStringAsFixed(1)} sa',
-                onChanged: (value) {
-                  setState(() {
-                    hours = value;
-                  });
-                },
+                min: 0, max: 16, divisions: 16,
+                label: '${hours.toInt()}',
+                onChanged: (v) => setDialogState(() => hours = v),
               ),
-              Text('Dakika: ${minutes.toInt()} dk'),
+              
+              const Align(alignment: Alignment.centerLeft, child: Text("Dakika", style: TextStyle(color: Colors.grey))),
               Slider(
                 value: minutes,
-                min: 0,
-                max: 59,
-                divisions: 59,
-                label: '${minutes.toStringAsFixed(0)} dk',
-                onChanged: (value) {
-                  setState(() {
-                    minutes = value;
-                  });
-                },
+                min: 0, max: 59, divisions: 60,
+                label: '${minutes.toInt()}',
+                onChanged: (v) => setDialogState(() => minutes = v),
               ),
             ],
           ),
@@ -143,9 +132,8 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                setState(() {
-                  sleepData[dayIndex] = hours + (minutes / 60);
-                });
+                double total = hours + (minutes / 60.0);
+                _saveSleepEntry(total);
                 Navigator.pop(context);
               },
               child: const Text('Kaydet'),
@@ -158,17 +146,10 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final todayIndex = this.todayIndex;
-    final todaySleep = sleepData[todayIndex];
+    final double todaySleep = sleepData.isNotEmpty ? sleepData.last : 0.0;
 
     if (isLoading) {
-      return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -179,276 +160,152 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Üst kısım: Geri butonu + Başlık
+                // ÜST BAŞLIK
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.bedtime, color: Theme.of(context).primaryColor, size: 28),
+                    if (widget.onBack != null)
+                      IconButton(icon: const Icon(Icons.arrow_back), onPressed: widget.onBack),
+                    Icon(Icons.bedtime, color: Colors.purple, size: 28),
                     const SizedBox(width: 12),
                     Text(
                       'Uyku Takibi',
                       style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[900],
-                      ),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[900],
+                    ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
 
-                // Bugünün uyku özeti kartı
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color.fromRGBO(156, 39, 176, 0.25),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
+                // ÖZET KARTI
+                _buildSummaryCard(context, todaySleep),
+                
+                const SizedBox(height: 16),
+
+                // --- BUGÜN VERİ EKLEME BUTONU ---
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _showTodaySleepDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple[400],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Dün Gece',
-                                style: Theme.of(context).textTheme.bodyLarge
-                                    ,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${todaySleep.toStringAsFixed(1)} saat',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.bedtime,
-                              color: Colors.black87,
-                              size: 32,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _SleepStat(
-                            label: 'Hedef',
-                            value: '${goal.toStringAsFixed(1)} sa',
-                            color: Colors.black87,
-                          ),
-                          _SleepStat(
-                            label: 'Fark',
-                            value: todaySleep >= goal
-                                ? '+${(todaySleep - goal).toStringAsFixed(1)} sa'
-                                : '-${(goal - todaySleep).toStringAsFixed(1)} sa',
-                            color: todaySleep >= goal
-                                ? Colors.green
-                                : Colors.red,
-                          ),
-                          _SleepStat(
-                            label: 'Kalite',
-                            value: 'İyi',
-                            color: Colors.black87,
-                          ),
-                        ],
-                      ),
-                    ],
+                      elevation: 4,
+                    ),
+                    icon: const Icon(Icons.add_circle_outline, size: 24),
+                    label: const Text(
+                      "Bugünün Uykusunu Gir",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
 
-                // Grafik başlığı ve rehber metni
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Haftalık Uyku Süresi',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    if (!hasHealthData)
-                      Text(
-                        'Çubuğa tıkla →',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: const Color.fromARGB(255, 48, 48, 48),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
+                const SizedBox(height: 32),
+
+                // GRAFİK BAŞLIĞI
+                const Text(
+                  'Son 7 Günlük İstatistik',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
 
-                // Uyku grafiği
+                // --- GRAFİK ---
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 20,
-                    horizontal: 16,
-                  ),
+                  height: 250,
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 15,
-                        offset: const Offset(0, 6),
-                      ),
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 6)),
                     ],
                   ),
-                  child: SizedBox(
-                    height: 250,
-                    child: BarChart(
-                      BarChartData(
-                        maxY: 10,
-                        minY: 0,
-                        barTouchData: BarTouchData(
-                          enabled: true,
-                          touchTooltipData: BarTouchTooltipData(
-                            tooltipPadding: const EdgeInsets.all(8),
-                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                              return BarTooltipItem(
-                                '${rod.toY.toStringAsFixed(1)} sa',
-                                const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                  child: BarChart(
+                    BarChartData(
+                      maxY: chartMaxY,
+                      barTouchData: BarTouchData(
+                        enabled: true, 
+                        touchCallback: null, // Tıklama iptal edildi
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipColor: (group) => Colors.blueGrey,
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            return BarTooltipItem(
+                              '${rod.toY.toStringAsFixed(1)} sa',
+                              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            );
+                          },
+                        ),
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (value, meta) => Text('${value.toInt()}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                          ),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              final int index = value.toInt();
+                              if (index < 0 || index >= 7) return const SizedBox();
+                              
+                              DateTime date = DateTime.now().subtract(Duration(days: 6 - index));
+                              const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(days[date.weekday - 1], style: const TextStyle(fontSize: 12, color: Colors.grey)),
                               );
                             },
                           ),
-                          handleBuiltInTouches: true,
-                          touchCallback: (event, response) {
-                            if (response?.spot != null) {
-                              final barIndex =
-                                  response!.spot!.touchedBarGroupIndex;
-                              if (!hasHealthData) {
-                                _showManualSleepDialog(barIndex);
-                              }
-                            }
-                          },
-                        ),
-                        gridData: FlGridData(
-                          show: true,
-                          horizontalInterval: 2,
-                          getDrawingHorizontalLine: (value) => FlLine(
-                            color: Colors.grey.withOpacity(0.2),
-                            strokeWidth: 1,
-                          ),
-                          drawVerticalLine: false,
-                        ),
-                        borderData: FlBorderData(show: false),
-                        barGroups: List.generate(
-                          sleepData.length,
-                          (i) => BarChartGroupData(
-                            x: i,
-                            barRods: [
-                              BarChartRodData(
-                                toY: sleepData[i],
-                                color: i == todayIndex
-                                    ? Theme.of(context).primaryColor
-                                    : Theme.of(context).shadowColor,
-                                width: 20,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ],
-                          ),
-                        ),
-                        titlesData: FlTitlesData(
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                const days = [
-                                  'Pzt',
-                                  'Sal',
-                                  'Çar',
-                                  'Per',
-                                  'Cum',
-                                  'Cmt',
-                                  'Paz',
-                                ];
-                                final index = value.toInt();
-                                return Text(
-                                  days[index],
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                return Text(
-                                  '${value.toStringAsFixed(0)}h',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey,
-                                  ),
-                                );
-                              },
-                              interval: 2,
-                              reservedSize: 40,
-                            ),
-                          ),
                         ),
                       ),
+                      borderData: FlBorderData(show: false),
+                      gridData: const FlGridData(show: false),
+                      
+                      // ÇUBUKLAR
+                      barGroups: List.generate(7, (i) {
+                        return BarChartGroupData(
+                          x: i,
+                          barRods: [
+                            BarChartRodData(
+                              toY: sleepData[i],
+                              color: i == 6 ? Colors.purple[400] : Theme.of(context).primaryColor.withOpacity(0.5),
+                              width: 20,
+                              borderRadius: BorderRadius.circular(6),
+                              // Arka plan çizgisi (görsellik için kalsın)
+                              backDrawRodData: BackgroundBarChartRodData(
+                                show: true,
+                                toY: chartMaxY,
+                                color: Colors.grey[100],
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
 
-                // İpuçları
-                Text(
-                  'Uyku İyileştirme İpuçları',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                _TipCard(
-                  title: '🛏️ Düzenli Uyku Saati',
-                  description: 'Her gün aynı saatte yatıp kalkmaya çalışın',
-                ),
-                const SizedBox(height: 8),
-                _TipCard(
-                  title: '📵 Ekran Kalması',
-                  description: 'Yatışından 30 dakika önce telefon kullanmayın',
-                ),
-                const SizedBox(height: 8),
-                _TipCard(
-                  title: '🌡️ Oda Sıcaklığı',
-                  description: 'Uyumak için ideal sıcaklık 16-19°C',
-                ),
                 const SizedBox(height: 24),
+                
+                // İPUÇLARI
+                const Text('Uyku İpuçları', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                _TipCard(title: '🛏️ Düzenli Saat', description: 'Her gün aynı saatte yatıp kalkmaya çalışın.'),
+                const SizedBox(height: 8),
+                _TipCard(title: '📵 Ekran Diyeti', description: 'Yatmadan 30 dk önce telefon kullanma.'),
               ],
             ),
           ),
@@ -456,106 +313,51 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
       ),
     );
   }
-}
 
-class _SleepStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _SleepStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: color.withOpacity(0.8)),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: color,
+  Widget _buildSummaryCard(BuildContext context, double todaySleep) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).primaryColor.withOpacity(0.1),
+            blurRadius: 15, offset: const Offset(0, 8),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SleepPhase extends StatelessWidget {
-  final String label;
-  final String duration;
-  final int percentage;
-  final Color color;
-
-  const _SleepPhase({
-    required this.label,
-    required this.duration,
-    required this.percentage,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Dün Gece', style: TextStyle(fontSize: 16, color: Colors.black54)),
+              const SizedBox(height: 8),
+              Text(
+                '${todaySleep.toStringAsFixed(1)} saat',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text("Hedef: ${goal.toInt()}s", style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 4),
+              Text(
+                todaySleep >= goal ? "Hedef Tamam! 🎉" : "${(goal - todaySleep).toStringAsFixed(1)}s eksik",
+                style: TextStyle(
+                  color: todaySleep >= goal ? Colors.green : Colors.orange,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              duration,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: percentage / 100,
-            minHeight: 6,
-            backgroundColor: Colors.grey[200],
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Text(
-            '%$percentage',
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
-          ),
-        ),
-      ],
+              )
+            ],
+          )
+        ],
+      ),
     );
   }
 }
@@ -563,7 +365,6 @@ class _SleepPhase extends StatelessWidget {
 class _TipCard extends StatelessWidget {
   final String title;
   final String description;
-
   const _TipCard({required this.title, required this.description});
 
   @override
@@ -571,26 +372,15 @@ class _TipCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Color.fromRGBO(202, 245, 204, 1),
+        color: Colors.green[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Color.fromRGBO(116, 163, 118, 1)),
+        border: Border.all(color: Colors.green[100]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-          ),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(description, style: TextStyle(color: Colors.grey[700], fontSize: 12)),
         ],
       ),
     );

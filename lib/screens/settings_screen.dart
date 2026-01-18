@@ -10,7 +10,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ayarlar'),
+        title: const Text('Ayarlar',style: TextStyle(fontSize: 24)),
         centerTitle: true,
       ),
       body: ListView(

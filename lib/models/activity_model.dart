@@ -1,29 +1,29 @@
 class Activity {
-  final int? id;
+  final int? activityId;
   final int userId;
   final String date;
   final String type;
   final int durationMinutes;
   final double distanceKm;
   final int calories;
-  final int steps;
+  final int? steps;
   final String? createdAt;
 
   Activity({
-    this.id,
+    this.activityId,
     required this.userId,
     required this.date,
     required this.type,
     required this.durationMinutes,
     required this.distanceKm,
     required this.calories,
-    required this.steps,
+    this.steps,
     this.createdAt,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'id': activityId,
       'user_id': userId,
       'date': date,
       'type': type,
@@ -37,7 +37,7 @@ class Activity {
 
   factory Activity.fromMap(Map<String, dynamic> map) {
     return Activity(
-      id: map['id'],
+      activityId: map['id'],
       userId: map['user_id'],
       date: map['date'],
       type: map['type'],

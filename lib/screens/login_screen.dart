@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_6/services/session_manager.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firebase_authService.dart';
-import '../database/firebase_database.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// DB erişimi için
+// Model erişimi
+import 'offline_user_creation_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   static const routeName = '/login';
@@ -31,8 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return "Email is required";
     }
 
-    final regex =
-    RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
 
     if (!regex.hasMatch(value.trim())) {
       return "Enter a valid email address";
@@ -73,14 +74,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'E-postanızı doğrulamadan giriş yapamazsınız',
-            ),
+            content: Text('E-postanızı doğrulamadan giriş yapamazsınız'),
           ),
         );
-      }
-      else
-      {
+      } else {
         /*
         final uid = FirebaseAuth.instance.currentUser!.uid;
 
@@ -102,27 +99,22 @@ class _LoginScreenState extends State<LoginScreen> {
         'user-not-found' ||
         'wrong-password' ||
         'invalid-credential' ||
-        'invalid_login_credentials' =>
-        'E-posta veya şifre hatalı',
+        'invalid_login_credentials' => 'E-posta veya şifre hatalı',
 
-        'email-already-in-use' =>
-        'Bu e-posta zaten kayıtlı',
+        'email-already-in-use' => 'Bu e-posta zaten kayıtlı',
 
-        'invalid-email' =>
-        'Geçersiz e-posta formatı',
+        'invalid-email' => 'Geçersiz e-posta formatı',
 
-        'weak-password' =>
-        'Şifre çok zayıf',
+        'weak-password' => 'Şifre çok zayıf',
 
-        'too-many-requests' =>
-        'Çok fazla deneme yapıldı. Lütfen bekleyin.',
+        'too-many-requests' => 'Çok fazla deneme yapıldı. Lütfen bekleyin.',
 
-        _ =>
-        'Giriş başarısız. Lütfen tekrar deneyin.'
+        _ => 'Giriş başarısız. Lütfen tekrar deneyin.',
       };
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Beklenmeyen bir hata oluştu!")),
@@ -131,7 +123,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => loading = false);
   }
-
 
   @override
   void dispose() {
@@ -147,8 +138,36 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _loginGuest() {
-      Navigator.pushReplacementNamed(context, HomeScreen.routeName);
+  Future<void> _loginOffline() async {
+    setState(() => loading = true);
+
+    try {
+      final user = await SessionManager.getOfflineUser();
+
+      if (!mounted) return;
+
+      if (user != null) {
+        // Kullanıcı VARSA -> Ana Ekrana git
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HomeScreen(isOffline: true),
+          ),
+        );
+      } else {
+        // Kullanıcı YOKSA -> Oluşturma Ekranına git
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const OfflineUserCreationScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("offline giriş hatası: $e");
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override
@@ -162,12 +181,25 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
             child: Column(
               children: [
-                Text('FitLife', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: Colors.grey[900])),
+                Text(
+                  'FitLife',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.grey[900],
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Günlük aktivitelerini kolayca takip et.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+                Text(
+                  'Günlük aktivitelerini kolayca takip et.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.black54),
+                ),
                 const SizedBox(height: 20),
                 Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 8,
                   child: Padding(
                     padding: const EdgeInsets.all(18.0),
@@ -181,71 +213,108 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: InputDecoration(
                               labelText: 'E-posta',
                               labelStyle: const TextStyle(
-                              fontSize: 20,
-                              color: Colors.grey,
+                                fontSize: 20,
+                                color: Colors.grey,
                               ),
                               border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0, // kenar boşluğunu azaltır
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
+                                gapPadding: 0, // kenar boşluğunu azaltır
                               ),
                               enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
+                                gapPadding: 0,
                               ),
                               focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 1,
+                                ),
+                                gapPadding: 0,
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // içeriği kenara yaklaştırır
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ), // içeriği kenara yaklaştırır
                             ),
-                            validator: validateEmail
+                            validator: validateEmail,
                           ),
                           const SizedBox(height: 12),
-                            TextFormField(
+                          TextFormField(
                             controller: _passCtrl,
                             obscureText: true,
                             decoration: InputDecoration(
                               labelText: 'Şifre',
                               labelStyle: const TextStyle(
-                              fontSize: 20,
-                              color: Colors.grey,
+                                fontSize: 20,
+                                color: Colors.grey,
                               ),
                               border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
+                                gapPadding: 0,
                               ),
                               enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: Colors.grey),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.grey,
+                                ),
+                                gapPadding: 0,
                               ),
                               focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1),
-                              gapPadding: 0,
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 1,
+                                ),
+                                gapPadding: 0,
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
-                            validator: validatePassword
-                            ),
+                            validator: validatePassword,
+                          ),
                           const SizedBox(height: 18),
                           ElevatedButton(
                             onPressed: _login,
                             style: ButtonStyle(
                               backgroundColor: WidgetStatePropertyAll(color),
-                              foregroundColor: const WidgetStatePropertyAll(Colors.white),
-                              shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                              minimumSize: const WidgetStatePropertyAll(Size.fromHeight(50)),
+                              foregroundColor: const WidgetStatePropertyAll(
+                                Colors.white,
+                              ),
+                              shape: WidgetStatePropertyAll(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              minimumSize: const WidgetStatePropertyAll(
+                                Size.fromHeight(50),
+                              ),
                               elevation: const WidgetStatePropertyAll(2),
                             ),
-                            child: const Text('GİRİŞ YAP', style: TextStyle(fontWeight: FontWeight.bold)),
+                            child: const Text(
+                              'GİRİŞ YAP',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                           const SizedBox(height: 1),
-                          TextButton(onPressed: () {}, child: Text('Şifremi unuttum', style: TextStyle(color: color))),
+                          TextButton(
+                            onPressed: () {},
+                            child: Text(
+                              'Şifremi unuttum',
+                              style: TextStyle(color: color),
+                            ),
+                          ),
                           const SizedBox(height: 1),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -261,25 +330,79 @@ class _LoginScreenState extends State<LoginScreen> {
                                   if (result == 'verify') {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Doğrulama maili gönderildi. Lütfen e-postanızı kontrol edin.'),
+                                        content: Text(
+                                          'Doğrulama maili gönderildi. Lütfen e-postanızı kontrol edin.',
+                                        ),
                                       ),
                                     );
                                   }
                                 },
-                                child: Text('Kayıt ol', style: TextStyle(color: color, fontWeight: FontWeight.w700)),
-                              )
+                                child: Text(
+                                  'Kayıt ol',
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 1),
+                          ElevatedButton(
+                            onPressed: _loginOffline,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: color, // Yazı ve ikon rengi
+                              elevation: 0, // Gölge yok, düz tasarım
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Çevrimdışı Devam Et',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                                Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
+                          ),
                           TextButton(
-                              onPressed: _loginGuest,
-                              child: Text('Misafir olarak devam et', style: TextStyle(color: color))
+                            onPressed: () async {
+                              await SessionManager.clearOfflineUser();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("offline veriler silindi"),
+                                ),
+                              );
+                            },
+                            child: const Text("offline verileri sıfırla"),
                           ),
                         ],
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),

@@ -18,7 +18,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
       body: ListView(
         children: [
           SwitchListTile(
-            title: const Text('Profilimi Herkese Göster'),
+            title: const Text('Çerezleri Kabul Et'),
             value: profileVisible,
             onChanged: (value) {
               setState(() {
@@ -27,16 +27,17 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
             },
           ),
           const Divider(),
-
-          SwitchListTile(
-            title: const Text('Aktivitelerimi Göster'),
-            value: activityVisible,
-            onChanged: (value) {
-              setState(() {
-                activityVisible = value;
-              });
-            },
-          ),
+ const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Text(
+        'Verileriniz aygıtınızda şifrelenir ve yalnızca izniniz alınarak paylaşılabilir.',
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.grey,
+        ),
+      ),
+    ),
+          
         ],
       ),
     );

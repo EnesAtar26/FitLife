@@ -1,5 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_application_6/services/session_manager.dart';
+
+import '../database/firebase_dataBase.dart';
 
 class WaterScreen extends StatefulWidget {
   static const routeName = '/water';
@@ -12,29 +16,98 @@ class WaterScreen extends StatefulWidget {
 }
 
 class _WaterScreenState extends State<WaterScreen> {
-  List<int> waterData = [-1, 3, 5, 8, 6, 10, 3];
+  // Son 7 günün verisi (0: 6 gün önce ... 6: Bugün)
+  List<int> waterData = List.filled(7, 0);
   String unit = 'bardak';
   int goal = 8;
+  bool isLoading = true;
 
-  int get todayIndex {
-    final wd = DateTime.now().weekday;
-    return (wd - 1) % 7;
+  @override
+  void initState() {
+    super.initState();
+    _loadWaterData();
   }
 
-  void _addWater() {
-    setState(() {
-      final idx = todayIndex;
-      waterData[idx] = (waterData[idx] + 1);
-    });
+  // --- VERİLERİ YÜKLE ---
+  Future<void> _loadWaterData() async {
+    try {
+      final waterMap = await SessionManager.getWaterLog();
+      final savedGoal = await SessionManager.getWaterGoal();
+      
+      final now = DateTime.now();
+      List<int> loadedList = [];
+
+      // Son 7 günü hesapla (Bugünden geriye doğru)
+      for (int i = 6; i >= 0; i--) {
+        DateTime date = now.subtract(Duration(days: i));
+        String key = _formatDate(date);
+        loadedList.add(waterMap[key] ?? 0);
+      }
+
+      if (mounted) {
+        setState(() {
+          waterData = loadedList;
+          goal = savedGoal;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // --- SU EKLEME VE KAYDETME ---
+  Future<void> _addWater() async {
+    try {
+      Map<String, int> waterMap = await SessionManager.getWaterLog();
+      DateTime now = DateTime.now();
+      String key = _formatDate(now);
+
+      int currentVal = waterMap[key] ?? 0;
+      waterMap[key] = currentVal + 1;
+
+      await SessionManager.saveWaterLog(waterMap);
+      _loadWaterData();
+
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((user) => user != null);
+
+      final user_id = user!.uid;
+      await FirebaseDatabaseService(uid: user_id).updateTodayWater(currentVal + 1, goal);
+    } catch (e) {
+      debugPrint("Su ekleme hatası: $e");
+    }
+  }
+
+  // --- HEDEF KAYDETME ---
+  Future<void> _saveGoal(int newGoal) async {
+    await SessionManager.saveWaterGoal(newGoal);
+
+    final user = await FirebaseAuth.instance
+        .authStateChanges()
+        .firstWhere((user) => user != null);
+
+    final user_id = user!.uid;
+    await FirebaseDatabaseService(uid: user_id).updateTodayWater(waterData.last, newGoal);
+
+    setState(() => goal = newGoal);
+  }
+
+  String _formatDate(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
   @override
   Widget build(BuildContext context) {
-    final maxVal =
-        (waterData.isNotEmpty ? waterData.reduce((a, b) => a > b ? a : b) : 1)
-            .ceil();
-    final chartMaxY = (maxVal + 5).toDouble();
-    final todayx = todayIndex;
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final int todayVal = waterData.last; 
+    // Grafik tavanını hesapla (En yüksek veri veya hedef + biraz boşluk)
+    int maxData = waterData.reduce((curr, next) => curr > next ? curr : next);
+    double chartMaxY = (maxData > goal ? maxData : goal) + 2.0;
 
     return Scaffold(
       backgroundColor: const Color.fromRGBO(248, 248, 248, 1),
@@ -44,37 +117,31 @@ class _WaterScreenState extends State<WaterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // BAŞLIK
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  if (widget.onBack != null)
+                    IconButton(icon: const Icon(Icons.arrow_back), onPressed: widget.onBack),
                   Icon(Icons.water_drop, color: Colors.blue[400], size: 28),
                   const SizedBox(width: 12),
                   Text(
                     'Su Takibi',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[900],
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[900]),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
+
+              // ÖZET KARTI
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.blue.withValues(alpha: 0.15),
-                    width: 1,
-                  ),
+                  border: Border.all(color: Colors.blue.withOpacity(0.15), width: 1),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withValues(alpha: 0.2),
-                      blurRadius: 15,
-                      offset: const Offset(0, 4),
-                    ),
+                    BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 4)),
                   ],
                 ),
                 child: Row(
@@ -84,22 +151,9 @@ class _WaterScreenState extends State<WaterScreen> {
                       children: [
                         Icon(Icons.flag, color: Colors.blue[400], size: 28),
                         const SizedBox(height: 8),
-                        Text(
-                          'Hedef',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                        Text('Hedef', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                         const SizedBox(height: 4),
-                        Text(
-                          '$goal $unit',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[900],
-                          ),
-                        ),
+                        Text('$goal $unit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[900])),
                       ],
                     ),
                     Container(height: 60, width: 1, color: Colors.grey[200]),
@@ -107,28 +161,18 @@ class _WaterScreenState extends State<WaterScreen> {
                       children: [
                         Icon(
                           Icons.water_drop,
-                          color: waterData[todayIndex].toInt() >= goal
-                              ? Colors.green
-                              : Colors.red[400],
+                          color: todayVal >= goal ? Colors.green : Colors.red[400],
                           size: 28,
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'İçilen',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                        Text('İçilen', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                         const SizedBox(height: 4),
                         Text(
-                          '${waterData[todayIndex].toInt()} $unit',
+                          '$todayVal $unit',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: waterData[todayIndex].toInt() >= goal
-                                ? Colors.green[600]
-                                : Colors.red[600],
+                            color: todayVal >= goal ? Colors.green[600] : Colors.red[600],
                           ),
                         ),
                       ],
@@ -137,6 +181,8 @@ class _WaterScreenState extends State<WaterScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // GRAFİK ALANI
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -145,123 +191,146 @@ class _WaterScreenState extends State<WaterScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.grey[200]!, width: 1),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 15,
-                        offset: const Offset(0, 4),
-                      ),
+                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Bu Haftanın Su İçişi',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[900],
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('7 Günlük İstatistik', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[900])),
+                          // Hedef Göstergesi (Lejant)
+                          Row(
+                            children: [
+                              Container(width: 12, height: 2, color: Colors.green),
+                              const SizedBox(width: 4),
+                              const Text("Hedef", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                            ],
+                          )
+                        ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 24), // Grafik üst boşluğu artırıldı
                       Expanded(
                         child: BarChart(
                           BarChartData(
                             maxY: chartMaxY,
                             minY: 0,
                             alignment: BarChartAlignment.spaceAround,
+                            
+                            // Izgara Çizgileri
                             gridData: FlGridData(
                               show: true,
-                              horizontalInterval: 2,
+                              drawVerticalLine: false,
+                              horizontalInterval: 2, // 2'şer artan çizgiler
                               getDrawingHorizontalLine: (value) => FlLine(
-                                color: Colors.grey.withValues(alpha: 0.1),
+                                color: Colors.grey.withOpacity(0.1),
                                 strokeWidth: 1,
                               ),
-                              drawVerticalLine: false,
                             ),
+                            
+                            // Hedef Çizgisi (Extra Lines)
+                            extraLinesData: ExtraLinesData(
+                              horizontalLines: [
+                                HorizontalLine(
+                                  y: goal.toDouble(),
+                                  color: Colors.green.withOpacity(0.6),
+                                  strokeWidth: 2,
+                                  dashArray: [5, 5], // Kesikli çizgi
+                                  label: HorizontalLineLabel(
+                                    show: true,
+                                    alignment: Alignment.topRight,
+                                    padding: const EdgeInsets.only(right: 5, bottom: 5),
+                                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10),
+                                    labelResolver: (line) => "Hedef: $goal",
+                                  ),
+                                ),
+                              ],
+                            ),
+
                             borderData: FlBorderData(show: false),
+                            
+                            // Dokunma Bilgisi
                             barTouchData: BarTouchData(
                               enabled: true,
                               touchTooltipData: BarTouchTooltipData(
-                                getTooltipColor: (BarChartGroupData group) {
-                                  return Colors.blue.withValues(alpha: 0.8);
+                                getTooltipColor: (group) => Colors.blue.withOpacity(0.8),
+                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                  return BarTooltipItem(
+                                    '${rod.toY.toInt()} $unit',
+                                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                  );
                                 },
-                                getTooltipItem:
-                                    (group, groupIndex, rod, rodIndex) {
-                                      return BarTooltipItem(
-                                        '${rod.toY.toInt()} $unit',
-                                        const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      );
-                                    },
                               ),
                             ),
+
+                            // Eksen Yazıları
                             titlesData: FlTitlesData(
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              
+                              // SOL EKSEN (Sayılar)
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 28,
+                                  interval: 2, // 0, 2, 4, 6...
+                                  getTitlesWidget: (value, meta) {
+                                    return Text(
+                                      value.toInt().toString(),
+                                      style: const TextStyle(color: Colors.grey, fontSize: 10),
+                                    );
+                                  },
+                                ),
                               ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              leftTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
+                              
+                              // ALT EKSEN (Günler)
                               bottomTitles: AxisTitles(
                                 sideTitles: SideTitles(
                                   showTitles: true,
                                   getTitlesWidget: (value, meta) {
-                                    const days = [
-                                      'Pzt',
-                                      'Sal',
-                                      'Çar',
-                                      'Per',
-                                      'Cum',
-                                      'Cmt',
-                                      'Paz',
-                                    ];
                                     final i = value.toInt();
-                                    if (i < 0 || i >= days.length) {
-                                      return const SizedBox.shrink();
-                                    }
+                                    if (i < 0 || i >= 7) return const SizedBox.shrink();
+                                    
+                                    DateTime date = DateTime.now().subtract(Duration(days: 6 - i));
+                                    const days = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+                                    
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 8.0),
                                       child: Text(
-                                        days[i],
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black87,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        days[date.weekday - 1],
+                                        style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600),
                                       ),
                                     );
                                   },
                                 ),
                               ),
                             ),
-                            barGroups: List.generate(waterData.length, (i) {
-                              if (waterData[i] == -1) {
-                                return BarChartGroupData(x: i, barRods: []);
-                              }
 
+                            // ÇUBUKLAR
+                            barGroups: List.generate(7, (i) {
+                              bool isGoalReached = waterData[i] >= goal;
+                              
                               return BarChartGroupData(
                                 x: i,
                                 barRods: [
                                   BarChartRodData(
                                     toY: waterData[i].toDouble(),
-                                    color:
-                                        i == todayx &&
-                                            waterData[i].toInt() >= goal
-                                        ? Colors.green[500]
-                                        : i == todayx
-                                        ? Colors.green[200]
-                                        : waterData[i].toInt() < goal
-                                        ? Colors.blue.withValues(alpha: 0.5)
-                                        : Colors.blue,
+                                    // RENK MANTIĞI:
+                                    // Hedefi geçenler -> MAVİ
+                                    // Hedefi geçemeyenler -> SOLUK MAVİ (Opacity 0.3)
+                                    color: isGoalReached 
+                                        ? Colors.blue 
+                                        : Colors.blue.withOpacity(0.3),
                                     width: 18,
                                     borderRadius: BorderRadius.circular(6),
+                                    // Dolum animasyonu için arka plan
+                                    backDrawRodData: BackgroundBarChartRodData(
+                                      show: true,
+                                      toY: chartMaxY,
+                                      color: Colors.grey.withOpacity(0.05),
+                                    ),
                                   ),
                                 ],
                               );
@@ -274,6 +343,8 @@ class _WaterScreenState extends State<WaterScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // BUTONLAR
               Row(
                 children: [
                   Expanded(
@@ -285,9 +356,7 @@ class _WaterScreenState extends State<WaterScreen> {
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -300,12 +369,8 @@ class _WaterScreenState extends State<WaterScreen> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.blue,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(
-                          color: Colors.blue.withValues(alpha: 0.3),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        side: BorderSide(color: Colors.blue.withOpacity(0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
@@ -320,8 +385,6 @@ class _WaterScreenState extends State<WaterScreen> {
 
   void _showGoalDialog() {
     final goalController = TextEditingController(text: goal.toString());
-    final unitController = TextEditingController(text: unit);
-
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -333,41 +396,28 @@ class _WaterScreenState extends State<WaterScreen> {
             Expanded(
               child: TextField(
                 controller: goalController,
-                keyboardType: TextInputType.number, // Sadece sayı klavyesi
+                keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Hedef',
-                  // DOĞRUSU BU: Birimi kutunun içine sağ tarafa ekler
                   suffixText: 'bardak',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('İptal Et'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal Et')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () {
-              setState(() {
-                final newGoal = int.tryParse(goalController.text);
-                if (newGoal != null && newGoal > 0) {
-                  goal = newGoal;
-                }
-                unit = unitController.text.trim().isEmpty
-                    ? unit
-                    : unitController.text.trim();
-              });
+              final newGoal = int.tryParse(goalController.text);
+              if (newGoal != null && newGoal > 0) {
+                _saveGoal(newGoal);
+              }
               Navigator.pop(ctx);
             },
             child: const Text('Tamam', style: TextStyle(color: Colors.white)),

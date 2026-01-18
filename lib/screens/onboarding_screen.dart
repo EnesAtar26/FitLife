@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_6/services/session_manager.dart';
 import 'login_screen.dart';
 import "package:lottie/lottie.dart";
 
@@ -32,18 +33,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
   ];
 
-  void _next() {
+  void _next() async {
     if (_page < _pages.length - 1) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
+      await SessionManager.setOnboardingComplete();
       Navigator.pushReplacementNamed(context, LoginScreen.routeName);
     }
   }
 
-  void _skip() {
+  void _skip() async {
+    await SessionManager.setOnboardingComplete();
     Navigator.pushReplacementNamed(context, LoginScreen.routeName);
   }
 
