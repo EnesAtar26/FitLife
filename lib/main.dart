@@ -13,10 +13,12 @@ import 'screens/activity_detail_screen.dart';
 import 'screens/sleep_tracker_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/session_manager.dart';
+import 'services/notification_service.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await NotificationService().init();
   await dotenv.load(fileName:".env");
   runApp(const MyApp());
 }

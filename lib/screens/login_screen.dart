@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import eklendi
 import 'signup_screen.dart';
 import 'home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -144,6 +145,14 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final user = await SessionManager.getOfflineUser();
 
+          // --- ID KAYDETME İŞLEMİ ---
+        final prefs = await SharedPreferences.getInstance();
+        if (user?.id != null) {
+          await prefs.setInt('current_user_id', user!.id!);
+          print("Giriş yapan kullanıcı ID kaydedildi: ${user?.id}");
+        }
+        // -------------------------
+
       if (!mounted) return;
 
       if (user != null) {
@@ -168,6 +177,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
+
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, HomeScreen.routeName);
   }
 
   @override

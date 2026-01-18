@@ -4,6 +4,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
 
 import '../database/firebase_dataBase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart';
 
 class WaterScreen extends StatefulWidget {
   static const routeName = '/water';
@@ -75,6 +77,7 @@ class _WaterScreenState extends State<WaterScreen> {
 
       final user_id = user!.uid;
       await FirebaseDatabaseService(uid: user_id).updateTodayWater(currentVal + 1, goal);
+      NotificationService().showWaterProgressNotification(currentVal + 1, goal);
     } catch (e) {
       debugPrint("Su ekleme hatası: $e");
     }
@@ -147,6 +150,7 @@ class _WaterScreenState extends State<WaterScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
+                    // HEDEF
                     Column(
                       children: [
                         Icon(Icons.flag, color: Colors.blue[400], size: 28),
@@ -157,6 +161,7 @@ class _WaterScreenState extends State<WaterScreen> {
                       ],
                     ),
                     Container(height: 60, width: 1, color: Colors.grey[200]),
+                    // İÇİLEN
                     Column(
                       children: [
                         Icon(
@@ -351,7 +356,7 @@ class _WaterScreenState extends State<WaterScreen> {
                     child: ElevatedButton.icon(
                       onPressed: _addWater,
                       icon: const Icon(Icons.add),
-                      label: Text('+1 $unit Ekle'),
+                      label: Text('+1 $unit'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
@@ -365,7 +370,7 @@ class _WaterScreenState extends State<WaterScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _showGoalDialog,
                       icon: const Icon(Icons.edit),
-                      label: const Text('Hedefi Düzenle'),
+                      label: const Text('Hedef'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.blue,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -417,10 +422,14 @@ class _WaterScreenState extends State<WaterScreen> {
               final newGoal = int.tryParse(goalController.text);
               if (newGoal != null && newGoal > 0) {
                 _saveGoal(newGoal);
+            //     NotificationService().showWaterProgressNotification(
+           //     currentVal + 1,
+           //     goal,
+            //  );
               }
               Navigator.pop(ctx);
             },
-            child: const Text('Tamam', style: TextStyle(color: Colors.white)),
+            child: const Text('Kaydet'),
           ),
         ],
       ),
