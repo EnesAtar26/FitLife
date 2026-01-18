@@ -1,7 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_6/widgets/step_recommender_form.dart';
 import 'settings_screen.dart';
 import 'update_profile_info_screen.dart';
 import 'reminder_edit_screen.dart';
@@ -20,6 +21,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Veriler (Başlangıçta boş/sıfır)
   String name = 'Kullanıcı';
   String subtitle = 'Bilgi Yok';
+
+  // Kullanıcı bilgileri (StepRecommenderForm için gerekli)
+  int? age;
+  int? heightCm;
+  int? weightKg;
+  String? gender;
 
   // Anlık veriler (Ana sayfadan çekilenler)
   int steps = 0;
@@ -53,6 +60,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           setState(() {
             name = "${user.firstName} ${user.lastName}";
             subtitle = "Yaş: ${user.age ?? '-'} • ${user.gender ?? '-'}";
+            age = user.age;
+            heightCm = user.heightCm;
+            weightKg = user.weightKg;
+            gender = user.gender;
             stepGoal = user.dailyStepGoal ?? 10000;
             waterGoal = user.dailyWaterGoal ?? 8;
             int sleepMin = user.sleepGoalMinutes ?? 480;
@@ -75,6 +86,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               name = "${data['Name'] ?? ''} ${data['Surname'] ?? ''}";
               subtitle =
                   "Yaş: ${data['Age'] ?? '-'} • ${data['Gender'] ?? '-'}";
+              age = data['Age'] as int?;
+              heightCm = data['heightCm'] as int?;
+              weightKg = data['weightKg'] as int?;
+              gender = data['Gender'] as String?;
               stepGoal = data['dailyStepGoal'] ?? 10000;
               waterGoal = data['dailyWaterGoal'] ?? 8;
               int sleepMin = data['sleepGoalMinutes'] ?? 480;
@@ -87,6 +102,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     }
+  }
+
+  // StepRecommenderForm için gerekli userData map'ini döndürür
+  Map<String, dynamic> get userData {
+    return {
+      'age': age ?? 25,
+      'weight': weightKg?.toDouble() ?? 70.0,
+      'height': heightCm?.toDouble() ?? 175.0,
+      'gender': gender ?? 'male',
+    };
   }
 
   // 2. Günlük Tüketim Verileri (Su, Uyku)
@@ -130,10 +155,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _openStepRecommender() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: StepRecommenderForm(
+          currentUserData: userData,
+          onTargetUpdated: (newGoal) {
+            setState(() {
+              stepGoal = newGoal;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -168,6 +211,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             _buildProfileHeader(theme),
             const SizedBox(height: 18),
+            _buildStepRecommenderCard(),
+            const SizedBox(height: 18),
             _buildPrimaryStatsCard(),
             const SizedBox(height: 16),
             _buildSmallStatsGrid(),
@@ -177,6 +222,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildRemindersCard(),
             const SizedBox(height: 36),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRecommenderCard() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFB39DDB), Color(0xFF9575CD)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF9575CD).withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _openStepRecommender,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), shape: BoxShape.circle),
+                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Akıllı Hedef Önerisi", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      SizedBox(height: 4),
+                      Text("Sana özel adım hedefini hesaplamak için dokun!", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 16),
+              ],
+            ),
+          ),
         ),
       ),
     );
