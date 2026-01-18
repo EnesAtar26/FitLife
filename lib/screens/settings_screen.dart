@@ -5,24 +5,24 @@ import 'profile_settings_page.dart';
 import 'notification_settings_page.dart';
 import 'privacy_settings_page.dart';
 
-
 Future<void> signOutUser(BuildContext context) async {
   await FirebaseAuth.instance.signOut();
 
   Navigator.of(context).pushAndRemoveUntil(
     MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
+    (route) => false,
   );
 }
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final bool isOffline;
+  const SettingsScreen({super.key, this.isOffline = false});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ayarlar',style: TextStyle(fontSize: 24)),
+        title: const Text('Ayarlar', style: TextStyle(fontSize: 24)),
         centerTitle: true,
       ),
       body: ListView(
@@ -35,7 +35,7 @@ class SettingsScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const ProfileSettingsPage(),
+                  builder: (_) => ProfileSettingsPage(isOffline: isOffline),
                 ),
               );
             },
@@ -64,9 +64,7 @@ class SettingsScreen extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const PrivacySettingsPage(),
-                ),
+                MaterialPageRoute(builder: (_) => const PrivacySettingsPage()),
               );
             },
           ),
@@ -74,10 +72,7 @@ class SettingsScreen extends StatelessWidget {
 
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
-              'Çıkış Yap',
-              style: TextStyle(color: Colors.red),
-            ),
+            title: const Text('Çıkış Yap', style: TextStyle(color: Colors.red)),
             onTap: () {
               signOutUser(context);
             },

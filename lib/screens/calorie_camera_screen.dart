@@ -20,7 +20,6 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
   String? _detectedFoodName;
   int? _detectedCalories;
 
-  // Listeyi final yapmıyoruz, çünkü veritabanından dolacak
   List<Map<String, dynamic>> _eatenFoods = [];
 
   int get _totalCalories =>
@@ -31,10 +30,9 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDailyFoods(); // Uygulama açılınca verileri yükle
+    _loadDailyFoods(); 
   }
 
-  // --- VERİ YÜKLEME ---
   Future<void> _loadDailyFoods() async {
     final foods = await SessionManager.getFoodLog();
     if (mounted) {
@@ -44,7 +42,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
     }
   }
 
-  // --- VERİ KAYDETME YARDIMCISI ---
+
   Future<void> _saveData() async {
     await SessionManager.saveFoodLog(_eatenFoods);
   }

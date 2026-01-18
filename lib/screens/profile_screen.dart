@@ -196,9 +196,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: const Icon(Icons.settings),
             onPressed: () {
               Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SettingsScreen(
+                            isOffline: widget.isOffline,
+                          ),
+                        ),
+                      ).then(
+                        (_) => _loadAllData(),
+                      );
             },
           ),
         ],
