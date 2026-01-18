@@ -17,7 +17,7 @@ import 'services/session_manager.dart';
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  await dotenv.load(fileName: ".env");
+  //await dotenv.load(fileName:".env");
   runApp(const MyApp());
 }
 

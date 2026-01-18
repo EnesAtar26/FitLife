@@ -72,8 +72,13 @@ class _SignupScreenState extends State<SignupScreen> {
       final user = userCredential.user;
 
       if (user != null && !user.emailVerified) {
-        final userId = FirebaseAuth.instance.currentUser!.uid;
-        await FirebaseDatabaseService(uid: userId).updateUserData(_firstName.text, 18, true);
+        final user = await FirebaseAuth.instance
+            .authStateChanges()
+            .firstWhere((user) => user != null);
+
+        final user_id = user!.uid;
+        await FirebaseDatabaseService(uid: user_id).registerUserData(_firstName.text, _lastName.text);
+        //await FirebaseDatabaseService(uid: user_id).registerUserData(_firstName.text, _lastName.text);
         await user.sendEmailVerification();
         Navigator.pop(context, "verify");
       }

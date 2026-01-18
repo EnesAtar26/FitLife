@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
 import 'package:health/health.dart';
+import '../database//firebase_dataBase.dart';
 
 // Kendi servis ve ekranlarınızın importları
 import 'package:flutter_application_6/services/streak_service.dart';
@@ -62,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void initState() {
+  void initState(){
     super.initState();
     _requestPermissionsAndFetchData(); // Sağlık verilerini çek
     _checkStreak(); // Seriyi kontrol et
@@ -395,6 +396,23 @@ class _HomeScreenState extends State<HomeScreen> {
         types: [HealthDataType.STEPS],
       );
 
+
+
+                  final uid = FirebaseAuth.instance.currentUser?.uid;
+            //DocumentSnapshot doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      DocumentSnapshot mdoc = await FirebaseFirestore.instance.collection('users').doc(uid).collection("misc").doc(uid).get();
+      if (mdoc.exists && mdoc.data() != null) {
+          // Eğer veritabanında varsa çek, yoksa varsayılanda kal
+          var data = mdoc.data() as Map<String, dynamic>;
+          if (data.containsKey('CaloryTarget')) {
+            _dailyCalorieGoal = (data['CaloryTarget'] as num).toInt();
+            _stepGoal = (data['StepsTarget'] as num).toInt();
+          }
+      }
+
+
+
+
       debugPrint("📦 [DEBUG] Health API'den dönen veri parçası sayısı: ${stepsData.length}");
 
       if (stepsData.isEmpty) {
@@ -569,10 +587,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   // --- FIREBASE GÜNCELLEME ---
                   final uid = FirebaseAuth.instance.currentUser?.uid;
                   if (uid != null) {
-                    await FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(uid)
-                        .update({'dailyCalorieGoal': newGoal});
+                      final user = await FirebaseAuth.instance
+                      .authStateChanges()
+                      .firstWhere((user) => user != null);
+
+                      final user_id = user!.uid;
+                      await FirebaseDatabaseService(uid: user_id).updateMiscInfo(_stepCount, _stepGoal, _streakCount, newGoal);
                   }
                 }
                 if (mounted) Navigator.pop(context);
