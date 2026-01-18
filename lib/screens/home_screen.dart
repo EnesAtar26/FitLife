@@ -376,72 +376,85 @@ class _HomeScreenState extends State<HomeScreen> {
  Future<void> _fetchHealthData() async {
     debugPrint("👣 [DEBUG] _fetchHealthData fonksiyonuna girildi.");
 
-    // if (widget.isOffline) {
-    //   debugPrint("⚠️ [DEBUG] Uygulama OFFLINE modda. Health API sorgusu atlanıyor.");
-    //   return;
-    // }
-
     try {
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
       
       debugPrint("⏳ [DEBUG] Sorgu Zaman Aralığı: $startOfDay  --->  $now");
 
-      // DÜZELTME: Sadece Adımları çekiyoruz
+      // 1. ADIMLARI TELEFONDAN ÇEK (OFFLINE/ONLINE FARK ETMEZ)
       List<HealthDataPoint> stepsData = await health.getHealthDataFromTypes(
         startTime: startOfDay,
         endTime: now,
         types: [HealthDataType.STEPS],
       );
 
-
-
-                  final uid = FirebaseAuth.instance.currentUser?.uid;
-            //DocumentSnapshot doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      DocumentSnapshot mdoc = await FirebaseFirestore.instance.collection('users').doc(uid).collection("misc").doc(uid).get();
-      if (mdoc.exists && mdoc.data() != null) {
-          // Eğer veritabanında varsa çek, yoksa varsayılanda kal
-          var data = mdoc.data() as Map<String, dynamic>;
-          if (data.containsKey('CaloryTarget')) {
-            _dailyCalorieGoal = (data['CaloryTarget'] as num).toInt();
-            _stepGoal = (data['StepsTarget'] as num).toInt();
-          }
-      }
-
-
-
-
       debugPrint("📦 [DEBUG] Health API'den dönen veri parçası sayısı: ${stepsData.length}");
-
-      if (stepsData.isEmpty) {
-        debugPrint("⚠️ [DEBUG] Veri listesi BOŞ döndü. (Google Fit/HealthKit'te bugün için veri olmayabilir)");
-      }
 
       // Adımları topla
       int totalSteps = 0;
       for (var data in stepsData) {
-        // Her bir veri parçasını gör (Çok fazla veri varsa burayı yorum satırı yapın)
-        // debugPrint("   -> Parça: ${data.value} | Kaynak: ${data.sourceId} | Tarih: ${data.dateFrom}");
-        
         if (data.value is NumericHealthValue) {
           int val = (data.value as NumericHealthValue).numericValue.toInt();
           totalSteps += val;
         }
       }
-
-      int calculatedCalories = (totalSteps*0.045).toInt();
-
+      
+      // Kalori Hesabı (Formül: Adım * 0.045)
+      int calculatedCalories = (totalSteps * 0.045).toInt();
       debugPrint("∑ [DEBUG] Hesaplanan TOPLAM ADIM: $totalSteps");
 
-      setState(() {
-        _stepCount = totalSteps;
-        _stepBurnedCalories = calculatedCalories;
-      });
+
+      // 2. FIREBASE HEDEF VERİLERİNİ ÇEK (SADECE ONLINE İSE)
+      // Bu kısmı try-catch içine alıyoruz ki hata verirse adımları ekrana basmayı engellemesin.
+      if (!widget.isOffline) {
+        try {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+             final uid = currentUser.uid;
+             // Veritabanı yolu ve koleksiyon isimlerinin doğruluğundan emin olun
+             DocumentSnapshot mdoc = await FirebaseFirestore.instance
+                 .collection('users')
+                 .doc(uid)
+                 .collection("misc") // "misc" koleksiyonun var mı?
+                 .doc(uid) // Doküman ID'si uid mi?
+                 .get();
+
+             if (mdoc.exists && mdoc.data() != null) {
+               var data = mdoc.data() as Map<String, dynamic>;
+               // Verileri güncelle (setState içinde değil, aşağıda toplu yapacağız)
+               if (data.containsKey('CaloryTarget')) {
+                 _dailyCalorieGoal = (data['CaloryTarget'] as num).toInt();
+               }
+               if (data.containsKey('StepsTarget')) {
+                 _stepGoal = (data['StepsTarget'] as num).toInt();
+               }
+             }
+          }
+        } catch (firebaseError) {
+          // Firebase hatası olursa sadece log düş, fonksiyonu durdurma!
+          debugPrint("⚠️ [UYARI] Firebase verisi çekilemedi (Ama adımlar gösterilecek): $firebaseError");
+        }
+      } else {
+         // OFFLINE İSE: Hedefleri yerel veritabanından (SessionManager) çekebilirsin
+         // Şimdilik mevcut değerleri koruyoruz.
+         debugPrint("ℹ️ [INFO] Offline mod: Firebase sorgusu atlandı.");
+      }
+
+      // 3. EKRANI GÜNCELLE (HER DURUMDA ÇALIŞIR)
+      if (mounted) {
+        setState(() {
+          _stepCount = totalSteps;
+          _stepBurnedCalories = calculatedCalories;
+          // _stepGoal ve _dailyCalorieGoal yukarıda güncellendiyse onlar da yansır
+        });
+      }
       
       debugPrint("✅ [DEBUG] UI güncellendi (_stepCount: $_stepCount)");
 
     } catch (e) {
-      debugPrint('❌ [DEBUG] Veri çekme hatası (Catch bloğu): $e');
+      // Burası sadece Health API (Adım sensörü) hatası verirse çalışır
+      debugPrint('❌ [DEBUG] Kritik Hata (Adımlar çekilemedi): $e');
     }
   }
 

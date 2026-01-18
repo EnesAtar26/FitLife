@@ -28,55 +28,100 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
   }
 
   Future<void> _loadSleepData() async {
+    setState(() => isLoading = true); // Yüklemeyi başlat
+
     try {
+      // 1. Yerel veriyi çek
       final sleepMap = await SessionManager.getSleepLog();
       final now = DateTime.now();
 
-      final user = await FirebaseAuth.instance
-          .authStateChanges()
-          .firstWhere((user) => user != null);
+      // 2. Firebase Kullanıcısını Kontrol Et (BEKLEMEDEN)
+      final user = FirebaseAuth.instance.currentUser;
 
-      final user_id = user!.uid;
+      // Firebase verisi için boş bir liste veya dolu liste hazırla
+      List<double> firebaseData = List.filled(7, 0.0);
 
-      List<double> loadedData = await FirebaseDatabaseService(uid: user_id).getWeeklySleep();;
+      // SADECE Kullanıcı varsa ve internet varsa Firebase'den çek
+      if (user != null) {
+        try {
+          firebaseData = await FirebaseDatabaseService(uid: user.uid).getWeeklySleep();
+          // Eğer firebase'den boş dönerse diye kontrol
+          if (firebaseData.isEmpty) firebaseData = List.filled(7, 0.0);
+        } catch (e) {
+          debugPrint("Firebase veri çekme hatası (Önemli değil, yerel devam et): $e");
+        }
+      }
+
+      // 3. Verileri Birleştir (Yerel + Firebase)
+      // Mantık: Son 7 gün için döngü kuruyoruz.
+      List<double> combinedData = [];
 
       for (int i = 6; i >= 0; i--) {
         DateTime date = now.subtract(Duration(days: i));
         String key = _formatDate(date);
-        loadedData.add(sleepMap[key] ?? 0.0);
+        
+        // Yerelde veri var mı?
+        double? localVal = sleepMap[key];
+        
+        // Firebase listesinden o güne denk gelen veri (Bu kısım Firebase servisin ne döndürdüğüne bağlı,
+        // Basitlik adına burada çakışma olmaması için Yerel veriyi öncelikli kılıyoruz)
+        
+        if (localVal != null && localVal > 0) {
+          combinedData.add(localVal);
+        } else {
+          // Yerelde yoksa Firebase'den gelen veriyi kullan (Eğer indeks uyuyorsa)
+          // Not: FirebaseData genellikle sıralı gelir, burada basitçe 0 ekliyoruz veya
+          // Firebase yapın gün bazlıysa onu maplemelisin.
+          // Şimdilik çakışmayı önlemek için 0.0 ekliyorum, çünkü sleepMap zaten ana veri kaynağın.
+          combinedData.add(0.0); 
+        }
+      }
+      
+      // NOT: Eğer Firebase servisiniz direkt son 7 günü veriyorsa, 
+      // yukarıdaki döngü yerine direkt onu kullanıp yerel veriyi üzerine yazabilirsiniz.
+      // Basit çözüm için: sleepMap (Yerel veri) en güncelidir.
+      // Sadece sleepMap'ten grafiği doldurmak en garantisidir:
+      
+      List<double> finalData = [];
+      for (int i = 6; i >= 0; i--) {
+        DateTime date = now.subtract(Duration(days: i));
+        String key = _formatDate(date);
+        // Yerelde varsa al, yoksa 0.0
+        finalData.add(sleepMap[key] ?? 0.0);
       }
 
       if (mounted) {
         setState(() {
-          sleepData = loadedData;
+          sleepData = finalData;
           isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint("Genel Hata: $e");
       if (mounted) setState(() => isLoading = false);
     }
   }
 
-  Future<void> _saveSleepEntry(double hours) async {
+ Future<void> _saveSleepEntry(double hours) async {
     try {
+      // 1. Önce Yerele Kaydet (Hızlı ve Garanti)
       final sleepMap = await SessionManager.getSleepLog();
-      
-      // Bugünün tarihi
       DateTime date = DateTime.now();
       String key = _formatDate(date);
-
-      sleepMap[key] = hours; 
+      sleepMap[key] = hours;
       await SessionManager.saveSleepLog(sleepMap);
 
-      final user = await FirebaseAuth.instance
-          .authStateChanges()
-          .firstWhere((user) => user != null);
+      // 2. Kullanıcı Online mı diye bak (Beklemeden)
+      final user = FirebaseAuth.instance.currentUser;
 
-      final user_id = user!.uid;
-      await FirebaseDatabaseService(uid: user_id).updateTodaySleep(hours);
+      if (user != null) {
+        // Online ise Firebase'e de yaz
+        await FirebaseDatabaseService(uid: user.uid).updateTodaySleep(hours);
+      }
 
+      // 3. Ekranı yenile
+      _loadSleepData();
       
-      _loadSleepData(); 
     } catch (e) {
       debugPrint("Hata: $e");
     }

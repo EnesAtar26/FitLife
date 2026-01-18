@@ -3,13 +3,15 @@ import 'package:flutter_application_6/services/session_manager.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_application_6/widgets/step_recommender_form.dart';
+import 'package:health/health.dart'; // <--- 1. BU EKLENDİ
+
 import 'settings_screen.dart';
 import 'update_profile_info_screen.dart';
 import 'reminder_edit_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   static const routeName = '/profile';
-  final bool isOffline; // Offline mod kontrolü
+  final bool isOffline; 
 
   const ProfileScreen({super.key, this.isOffline = false});
 
@@ -18,17 +20,17 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // Veriler (Başlangıçta boş/sıfır)
+  // Veriler
   String name = 'Kullanıcı';
   String subtitle = 'Bilgi Yok';
 
-  // Kullanıcı bilgileri (StepRecommenderForm için gerekli)
+  // Kullanıcı bilgileri
   int? age;
   int? heightCm;
   int? weightKg;
   String? gender;
 
-  // Anlık veriler (Ana sayfadan çekilenler)
+  // Anlık veriler
   int steps = 0;
   int calories = 0;
   int waterGlasses = 0;
@@ -39,19 +41,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int waterGoal = 8;
   Duration sleepGoal = const Duration(hours: 8, minutes: 0);
 
+  // Health Nesnesi
+  final Health health = Health(); // <--- 2. BU EKLENDİ
+
   @override
   void initState() {
     super.initState();
     _loadAllData();
   }
 
-  // --- TÜM VERİLERİ ÇEKME ---
   Future<void> _loadAllData() async {
-    await _fetchUserData(); // İsim, Boy, Kilo, Hedefler
-    await _fetchDailyStats(); // Su, Uyku (Adım telefondan geldiği için burada 0 kalabilir veya eklenebilir)
+    await _fetchUserData(); 
+    await _fetchDailyStats();
+    await _fetchSteps(); // <--- 3. ADIM ÇEKME EKLENDİ
   }
 
-  // 1. Kullanıcı Bilgileri ve Hedefler
+  // --- YENİ: ADIMLARI ÇEKEN FONKSİYON ---
+  Future<void> _fetchSteps() async {
+    try {
+      // İzinleri kontrol et (Zaten ana sayfada alındıysa sormaz)
+      bool requested = await health.requestAuthorization([HealthDataType.STEPS]);
+
+      if (requested) {
+        final now = DateTime.now();
+        final startOfDay = DateTime(now.year, now.month, now.day);
+
+        // Adımları Telefondan Çek
+        List<HealthDataPoint> stepsData = await health.getHealthDataFromTypes(
+          startTime: startOfDay,
+          endTime: now,
+          types: [HealthDataType.STEPS],
+        );
+
+        // Topla
+        int totalSteps = 0;
+        for (var data in stepsData) {
+          if (data.value is NumericHealthValue) {
+            totalSteps += (data.value as NumericHealthValue).numericValue.toInt();
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            steps = totalSteps;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Profil Ekranı Adım Hatası: $e");
+    }
+  }
+  // ---------------------------------------
+
   Future<void> _fetchUserData() async {
     if (widget.isOffline) {
       final user = await SessionManager.getOfflineUser();
@@ -72,7 +113,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } else {
-      // Firebase işlemleri buraya (Online mod için)
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         final doc = await FirebaseFirestore.instance
@@ -104,7 +144,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // StepRecommenderForm için gerekli userData map'ini döndürür
   Map<String, dynamic> get userData {
     return {
       'age': age ?? 25,
@@ -114,27 +153,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     };
   }
 
-  // 2. Günlük Tüketim Verileri (Su, Uyku)
   Future<void> _fetchDailyStats() async {
-    // Tarih anahtarı
     final now = DateTime.now();
     String dateKey =
         "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-    // Su verisi
     final waterMap = await SessionManager.getWaterLog();
     int todayWater = waterMap[dateKey] ?? 0;
 
-    // Uyku verisi
     final sleepMap = await SessionManager.getSleepLog();
     double sleepHoursVal = sleepMap[dateKey] ?? 0.0;
     int sHours = sleepHoursVal.toInt();
     int sMinutes = ((sleepHoursVal - sHours) * 60).toInt();
 
-    // Kalori verisi (Haftalık kaloriden bugünü çek)
     final activityMap = await SessionManager.getActivityMap();
     double todayCal = 0;
-    // Basit eşleşme (Detaylısı için önceki kodlara bakılabilir)
     for (var entry in activityMap.entries) {
       if (entry.key.day == now.day &&
           entry.key.month == now.month &&
@@ -150,7 +183,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         waterGlasses = todayWater;
         sleep = Duration(hours: sHours, minutes: sMinutes);
         calories = todayCal.toInt();
-        // steps = ... (Adım verisi health paketinden geldiği için burada ayrıca çekmek gerekir veya ana sayfadan passlanabilir)
       });
     }
   }
@@ -335,7 +367,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ).then(
                         (_) => _loadAllData(),
-                      ); // Dönüşte verileri güncelle
+                      ); 
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Padding(
@@ -408,7 +440,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStepsCircle() {
-    // Adım verisi 0 olsa bile hata vermemesi için kontrol
     final percent = (stepGoal > 0) ? (steps / stepGoal).clamp(0.0, 1.0) : 0.0;
     return Stack(
       alignment: Alignment.center,
@@ -455,7 +486,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSmallStatsGrid() {
     return Row(
       children: [
-        // Buradaki veriler manuel girilen son aktivite verisinden de çekilebilir
         Expanded(child: _miniCard('Aktivite', 'Özet', '$calories kcal')),
         const SizedBox(width: 12),
         Expanded(
