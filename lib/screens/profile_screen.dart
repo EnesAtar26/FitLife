@@ -22,6 +22,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String name = 'Kullanıcı';
   String subtitle = 'Bilgi Yok';
 
+  // Kullanıcı bilgileri (StepRecommenderForm için gerekli)
+  int? age;
+  int? heightCm;
+  int? weightKg;
+  String? gender;
+
   // Anlık veriler (Ana sayfadan çekilenler)
   int steps = 0;
   int calories = 0;
@@ -54,6 +60,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           setState(() {
             name = "${user.firstName} ${user.lastName}";
             subtitle = "Yaş: ${user.age ?? '-'} • ${user.gender ?? '-'}";
+            age = user.age;
+            heightCm = user.heightCm;
+            weightKg = user.weightKg;
+            gender = user.gender;
             stepGoal = user.dailyStepGoal ?? 10000;
             waterGoal = user.dailyWaterGoal ?? 8;
             int sleepMin = user.sleepGoalMinutes ?? 480;
@@ -76,6 +86,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               name = "${data['Name'] ?? ''} ${data['Surname'] ?? ''}";
               subtitle =
                   "Yaş: ${data['Age'] ?? '-'} • ${data['Gender'] ?? '-'}";
+              age = data['Age'] as int?;
+              heightCm = data['heightCm'] as int?;
+              weightKg = data['weightKg'] as int?;
+              gender = data['Gender'] as String?;
               stepGoal = data['dailyStepGoal'] ?? 10000;
               waterGoal = data['dailyWaterGoal'] ?? 8;
               int sleepMin = data['sleepGoalMinutes'] ?? 480;
@@ -88,6 +102,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     }
+  }
+
+  // StepRecommenderForm için gerekli userData map'ini döndürür
+  Map<String, dynamic> get userData {
+    return {
+      'age': age ?? 25,
+      'weight': weightKg?.toDouble() ?? 70.0,
+      'height': heightCm?.toDouble() ?? 175.0,
+      'gender': gender ?? 'male',
+    };
   }
 
   // 2. Günlük Tüketim Verileri (Su, Uyku)
@@ -131,40 +155,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserData();
-  }
-
-  Future<void> _fetchUserData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        if (mounted) {
-          setState(() {
-            userData = data;
-            if (data['name'] != null) {
-              name = "${data['name']} ${data['surname'] ?? ''}";
-            }
-            if (data['age'] != null) {
-              subtitle = "Yaş: ${data['age']} • ${data['weight'] ?? '-'} kg";
-            }
-            if (data['dailyStepGoal'] != null) {
-              dailyStepGoal = (data['dailyStepGoal'] as num).toInt();
-            }
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Profil verisi çekilemedi: $e");
-    }
-  }
-
   void _openStepRecommender() {
     showModalBottomSheet(
       context: context,
@@ -176,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           currentUserData: userData,
           onTargetUpdated: (newGoal) {
             setState(() {
-              dailyStepGoal = newGoal;
+              stepGoal = newGoal;
             });
           },
         ),
