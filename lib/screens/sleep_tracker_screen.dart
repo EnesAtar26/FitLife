@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
+import '../database//firebase_dataBase.dart';
 
 class SleepTrackerScreen extends StatefulWidget {
   static const routeName = '/sleep-tracker';
@@ -29,7 +31,14 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
     try {
       final sleepMap = await SessionManager.getSleepLog();
       final now = DateTime.now();
-      List<double> loadedData = [];
+
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((user) => user != null);
+
+      final user_id = user!.uid;
+
+      List<double> loadedData = await FirebaseDatabaseService(uid: user_id).getWeeklySleep();;
 
       for (int i = 6; i >= 0; i--) {
         DateTime date = now.subtract(Duration(days: i));
@@ -58,6 +67,14 @@ class _SleepTrackerScreenState extends State<SleepTrackerScreen> {
 
       sleepMap[key] = hours; 
       await SessionManager.saveSleepLog(sleepMap);
+
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((user) => user != null);
+
+      final user_id = user!.uid;
+      await FirebaseDatabaseService(uid: user_id).updateTodaySleep(hours);
+
       
       _loadSleepData(); 
     } catch (e) {

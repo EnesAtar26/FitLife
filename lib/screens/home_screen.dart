@@ -522,6 +522,12 @@ class _HomeScreenState extends State<HomeScreen> {
               int? newGoal = int.tryParse(controller.text);
               if (newGoal != null && newGoal > 0) {
                 setState(() => _stepGoal = newGoal);
+                final fireUser = await FirebaseAuth.instance
+                    .authStateChanges()
+                    .firstWhere((fireUser) => fireUser != null);
+
+                final user_id = fireUser!.uid;
+                await FirebaseDatabaseService(uid: user_id).updateMiscInfo(_stepCount, newGoal, _streakCount, _dailyCalorieGoal);
 
                 // Eğer Offline kullanıcı ise veriyi kaydet
                 final user = await SessionManager.getOfflineUser();

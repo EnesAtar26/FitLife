@@ -1,6 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_6/models/activity_model.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
+
+import '../database/firebase_dataBase.dart';
 
 class ActivityDetailScreen extends StatefulWidget {
   static const routeName = '/activity-detail';
@@ -70,6 +73,13 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
     // 4. Kaydet
     await SessionManager.saveActivityMap(allActivities);
+
+    final user = await FirebaseAuth.instance
+        .authStateChanges()
+        .firstWhere((user) => user != null);
+
+    final user_id = user!.uid;
+    await FirebaseDatabaseService(uid: user_id).updateActivityInfo(addedActivities);
   }
 
   Map<String, dynamic> _getActivityDef(String type) {

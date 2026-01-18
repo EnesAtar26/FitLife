@@ -1,55 +1,34 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import 'package:flutter_application_6/models/activity_model.dart';
+
+
 
 class Food {
+  final DateTime date;
   final String name;
   final int calories;
-  final double time;
 
   Food({
+    required this.date,
     required this.name,
-    required this.calories,
-    required this.time
+    required this.calories
   });
 
   Map<String, dynamic> toMap() {
     return {
+      'Date' : date,
       'Name': name,
-      'Calories': calories,
-      'Time' : time
+      'Calories': calories
     };
   }
 
   factory Food.fromMap(Map<String, dynamic> map) {
     return Food(
+      date: DateTime.parse(map['date']),
       name: map['Name'],
       calories: (map['Calories'] as num).toInt(),
-      time: (map['Time'] as num).toDouble(),
-    );
-  }
-}
-
-class Activity {
-  final String name;
-  final int duration;
-
-  Activity({
-    required this.name,
-    required this.duration,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'Name': name,
-      'Duration' : duration
-    };
-  }
-
-  factory Activity.fromMap(Map<String, dynamic> map) {
-    return Activity(
-      name: map['Name'],
-      duration: (map['Duration'] as num).toInt(),
     );
   }
 }
@@ -80,8 +59,8 @@ class WaterLog {
   factory WaterLog.fromMap(Map<String, dynamic> map) {
     return WaterLog(
       date: DateTime.parse(map['date']),
-      consumed: map['consumed'],
-      target: map['target'],
+      consumed: (map['consumed'] as num).toInt(),
+      target: (map['target'] as num).toInt(),
       unit: map['unit'],
     );
   }
@@ -89,19 +68,19 @@ class WaterLog {
 
 class SleepLog {
   final DateTime date;
-  final int slepHour;
-  final int target;
+  final double sleepHour;
+  final double target;
 
   SleepLog({
     required this.date,
-    required this.slepHour,
+    required this.sleepHour,
     required this.target,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'date': date.toIso8601String().substring(0, 10),
-      'slepHour': slepHour,
+      'sleepHour': sleepHour,
       'target': target,
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -110,8 +89,8 @@ class SleepLog {
   factory SleepLog.fromMap(Map<String, dynamic> map) {
     return SleepLog(
       date: DateTime.parse(map['date']),
-      slepHour: map['slepHour'],
-      target: map['target'],
+      sleepHour: (map['sleepHour'] as num).toDouble(),
+      target: (map['target'] as num).toDouble()
     );
   }
 }
@@ -168,18 +147,14 @@ class FirebaseDatabaseService
     await updateMiscInfo(0, 1000, 0, 1700);
     await updateWaterNotificationInfo(false, TimeOfDay.fromDateTime(DateTime.timestamp()), 3);
     await updateSleepNotificationInfo(false, TimeOfDay.fromDateTime(DateTime.timestamp()), 8, 0);
-
-    WaterLog w = WaterLog(date: DateTime.timestamp(), consumed: 0, target: 10, unit: "Bardak");
-    await updateTodayWater(w);
+    await updateTodayWater(0, 8);
+    await updateTodaySleep(0);
 
     List<Food> foods = [];
     await updateFoodInfo(foods);
 
     List<Activity> activities = [];
     await updateActivityInfo(activities);
-
-    SleepLog s = SleepLog(date: DateTime.timestamp(), slepHour: 0, target: 8);
-    await updateTodaySleep(s);
   }
 
 
@@ -189,21 +164,23 @@ class FirebaseDatabaseService
     }, SetOptions(merge: true));
   }
 
-  Future<void> updateTodaySleep(SleepLog log) async {
-    final dateId = log.date.toIso8601String().substring(0, 10);
+  Future<void> updateTodaySleep(double sleepHour) async {
+    SleepLog s = SleepLog(date: DateTime.timestamp(), sleepHour: sleepHour, target: 8);
+    final dateId = s.date.toIso8601String().substring(0, 10);
 
     await sleepCollection
         .doc(dateId)
-        .set(log.toMap(), SetOptions(merge: true));
+        .set(s.toMap(), SetOptions(merge: true));
   }
 
 
-  Future<void> updateTodayWater(WaterLog log) async {
-    final dateId = log.date.toIso8601String().substring(0, 10);
+  Future<void> updateTodayWater(int c, int t) async {
+    WaterLog w = WaterLog(date: DateTime.timestamp(), consumed: c, target: t, unit: "Bardak");
+    final dateId = w.date.toIso8601String().substring(0, 10);
 
     await waterCollection
         .doc(dateId)
-        .set(log.toMap(), SetOptions(merge: true));
+        .set(w.toMap(), SetOptions(merge: true));
   }
 
   Future<void> updateFoodInfo(List<Food> foods) async {
@@ -273,4 +250,28 @@ class FirebaseDatabaseService
       "Gender" : gender
     });
   }
+
+  //------------------------------
+
+  Future<List<double>> getWeeklySleep() async {
+    final now = DateTime.now();
+    final start =
+    now.subtract(const Duration(days: 6)).toIso8601String().substring(0, 10);
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('sleep')
+        .where('date', isGreaterThanOrEqualTo: start)
+        .orderBy('date')
+        .get();
+
+    var sleeps = snapshot.docs
+        .map((e) => SleepLog.fromMap(e.data()))
+        .toList();
+
+    return sleeps.map((item) => item.sleepHour).toList();
+  }
+
+
 }

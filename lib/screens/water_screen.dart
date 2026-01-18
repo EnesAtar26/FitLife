@@ -1,6 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
+
+import '../database/firebase_dataBase.dart';
 
 class WaterScreen extends StatefulWidget {
   static const routeName = '/water';
@@ -65,6 +68,13 @@ class _WaterScreenState extends State<WaterScreen> {
 
       await SessionManager.saveWaterLog(waterMap);
       _loadWaterData();
+
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .firstWhere((user) => user != null);
+
+      final user_id = user!.uid;
+      await FirebaseDatabaseService(uid: user_id).updateTodayWater(currentVal + 1, goal);
     } catch (e) {
       debugPrint("Su ekleme hatası: $e");
     }
@@ -73,6 +83,14 @@ class _WaterScreenState extends State<WaterScreen> {
   // --- HEDEF KAYDETME ---
   Future<void> _saveGoal(int newGoal) async {
     await SessionManager.saveWaterGoal(newGoal);
+
+    final user = await FirebaseAuth.instance
+        .authStateChanges()
+        .firstWhere((user) => user != null);
+
+    final user_id = user!.uid;
+    await FirebaseDatabaseService(uid: user_id).updateTodayWater(waterData.last, newGoal);
+
     setState(() => goal = newGoal);
   }
 
