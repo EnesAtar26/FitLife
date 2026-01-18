@@ -1003,7 +1003,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Günaydın, ${_userName.isNotEmpty ? _userName : "<BOŞ>"}',
+                'Günaydın ${_userName.isNotEmpty ? _userName : ""}',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

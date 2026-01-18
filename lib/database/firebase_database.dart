@@ -106,7 +106,7 @@ class FirebaseDatabaseService
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   CollectionReference get userDoc =>
-      _db.collection('users').doc(uid).collection('profile');
+  _db.collection('users').doc(uid).collection('profile');
 
   CollectionReference get bodyCollection =>
   _db.collection('users').doc(uid).collection('body');
