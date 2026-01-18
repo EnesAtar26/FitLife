@@ -1,7 +1,19 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'login_screen.dart';
 import 'profile_settings_page.dart';
 import 'notification_settings_page.dart';
 import 'privacy_settings_page.dart';
+
+
+Future<void> signOutUser(BuildContext context) async {
+  await FirebaseAuth.instance.signOut();
+
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+  );
+}
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -67,7 +79,7 @@ class SettingsScreen extends StatelessWidget {
               style: TextStyle(color: Colors.red),
             ),
             onTap: () {
-              Navigator.pop(context);
+              signOutUser(context);
             },
           ),
         ],

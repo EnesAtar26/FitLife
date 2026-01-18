@@ -235,6 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
       DocumentSnapshot doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
+          .collection('profile')
+          .doc(uid)
           .get();
 
       if (doc.exists && doc.data() != null) {
@@ -246,10 +248,6 @@ class _HomeScreenState extends State<HomeScreen> {
         // İsim alanını farklı anahtarlarla kontrol et (Büyük/Küçük harf duyarlılığı için)
         if (data.containsKey('Name')) {
           fetchedName = data['Name'];
-        } else if (data.containsKey('name')) {
-          fetchedName = data['name'];
-        } else if (data.containsKey('first_name')) {
-          fetchedName = data['first_name'];
         } else if (currentUser.displayName != null &&
             currentUser.displayName!.isNotEmpty) {
           fetchedName = currentUser.displayName!;
