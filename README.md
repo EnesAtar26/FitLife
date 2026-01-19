@@ -10,3 +10,5 @@ Key Features:
 * Interactive charts for weekly and monthly performance
 * Local data storage (SQLite)
 * Smart notifications and goal reminders
+
+Fitlife will be released on Google Play soon.
