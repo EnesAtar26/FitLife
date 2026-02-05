@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_application_6/database/firebase_database.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
 import 'package:health/health.dart';
-import '../database//firebase_dataBase.dart';
 
 // Kendi servis ve ekranlarınızın importları
 import 'package:flutter_application_6/services/streak_service.dart';

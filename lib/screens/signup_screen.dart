@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../database//firebase_dataBase.dart';
+import 'package:flutter_application_6/database/firebase_database.dart';
 import 'home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firebase_authService.dart';

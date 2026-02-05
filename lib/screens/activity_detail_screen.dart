@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_6/database/firebase_database.dart';
 import 'package:flutter_application_6/models/activity_model.dart';
 import 'package:flutter_application_6/services/session_manager.dart';
 
-import '../database/firebase_dataBase.dart';
 
 class ActivityDetailScreen extends StatefulWidget {
   static const routeName = '/activity-detail';

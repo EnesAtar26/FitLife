@@ -12,7 +12,9 @@
     
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />"
+
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
         android:label="flutter_application_6"
