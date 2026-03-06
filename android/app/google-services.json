@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:971334780772:android:bcffa95f1fe2c8d2a3dc71",
+        "mobilesdk_app_id": "1:971334780772:android:1e25c01c23b951e3a3dc71",
         "android_client_info": {
-          "package_name": "com.example.flutter_application_6"
+          "package_name": "com.iuc.fitlife"
         }
       },
       "oauth_client": [],
