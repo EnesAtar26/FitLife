@@ -1,4 +1,4 @@
-package com.example.flutter_application_6
+package com.iuc.fitlife
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine

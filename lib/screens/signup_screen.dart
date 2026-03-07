@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_6/database/firebase_database.dart';
-import 'home_screen.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/firebase_authService.dart';
 
@@ -18,7 +18,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _pass = TextEditingController();
-  final _auth = AuthService();
+  final _auth = FirebaseAuthService();
 
   bool loading = false;
   bool hidePassword = true;
@@ -30,8 +30,7 @@ class _SignupScreenState extends State<SignupScreen> {
       return "Email is required";
     }
 
-    final regex =
-    RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
 
     if (!regex.hasMatch(value.trim())) {
       return "Enter a valid email address";
@@ -62,61 +61,55 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => loading = true);
 
     try {
-      final userCredential =
-      await FirebaseAuth.instance
+      final userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email: _email.text.trim(),
-        password: _pass.text.trim(),
-      );
+            email: _email.text.trim(),
+            password: _pass.text.trim(),
+          );
 
       final user = userCredential.user;
 
       if (user != null && !user.emailVerified) {
-        final user = await FirebaseAuth.instance
-            .authStateChanges()
-            .firstWhere((user) => user != null);
+        final user = await FirebaseAuth.instance.authStateChanges().firstWhere(
+          (user) => user != null,
+        );
 
         final user_id = user!.uid;
-        await FirebaseDatabaseService(uid: user_id).registerUserData(_firstName.text, _lastName.text);
+        await FirebaseDatabaseService(
+          uid: user_id,
+        ).registerUserData(_firstName.text, _lastName.text);
         //await FirebaseDatabaseService(uid: user_id).registerUserData(_firstName.text, _lastName.text);
         await user.sendEmailVerification();
         Navigator.pop(context, "verify");
-      }
-      else
-      {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Beklenmeyen bir hata oluştu!")));
+          const SnackBar(content: Text("Beklenmeyen bir hata oluştu!")),
+        );
       }
 
       // kullanıcıyı çıkart
       await FirebaseAuth.instance.signOut();
-
     } on FirebaseAuthException catch (e) {
       final message = switch (e.code) {
         'user-not-found' ||
         'wrong-password' ||
         'invalid-credential' ||
-        'invalid_login_credentials' =>
-        'E-posta veya şifre hatalı',
+        'invalid_login_credentials' => 'E-posta veya şifre hatalı',
 
-        'email-already-in-use' =>
-        'Bu e-posta zaten kayıtlı',
+        'email-already-in-use' => 'Bu e-posta zaten kayıtlı',
 
-        'invalid-email' =>
-        'Geçersiz e-posta formatı',
+        'invalid-email' => 'Geçersiz e-posta formatı',
 
-        'weak-password' =>
-        'Şifre çok zayıf',
+        'weak-password' => 'Şifre çok zayıf',
 
-        'too-many-requests' =>
-        'Çok fazla deneme yapıldı. Lütfen bekleyin.',
+        'too-many-requests' => 'Çok fazla deneme yapıldı. Lütfen bekleyin.',
 
-        _ =>
-        'Giriş başarısız. Lütfen tekrar deneyin.'
+        _ => 'Giriş başarısız. Lütfen tekrar deneyin.',
       };
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Beklenmeyen bir hata oluştu!")),
@@ -126,9 +119,7 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => loading = false);
   }
 
-
-
-  final AuthService _authService = AuthService();
+  final FirebaseAuthService _authService = FirebaseAuthService();
   final bool _isLoading = false;
   String? _error;
 
@@ -145,8 +136,6 @@ class _SignupScreenState extends State<SignupScreen> {
     if (_formKey.currentState?.validate() ?? false) {
       submit();
     }
-
-    Navigator.pushReplacementNamed(context, HomeScreen.routeName);
   }
 
   @override
@@ -160,7 +149,9 @@ class _SignupScreenState extends State<SignupScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
           child: Card(
             elevation: 6,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Form(
@@ -173,29 +164,36 @@ class _SignupScreenState extends State<SignupScreen> {
                       controller: _firstName,
                       decoration: InputDecoration(
                         labelText: 'Ad',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Ad girin' : null,
+                          (v == null || v.trim().isEmpty) ? 'Ad girin' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _lastName,
                       decoration: InputDecoration(
                         labelText: 'Soyad',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Soyad girin' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Soyad girin'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _email,
                       decoration: InputDecoration(
                         labelText: 'E-posta',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      validator: validateEmail
+                      validator: validateEmail,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -203,9 +201,11 @@ class _SignupScreenState extends State<SignupScreen> {
                       obscureText: true,
                       decoration: InputDecoration(
                         labelText: 'Şifre',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      validator: validatePassword
+                      validator: validatePassword,
                     ),
                     const SizedBox(height: 12),
 
@@ -219,16 +219,22 @@ class _SignupScreenState extends State<SignupScreen> {
                       onPressed: _isLoading ? null : submit,
                       style: ButtonStyle(
                         backgroundColor: WidgetStatePropertyAll(color),
-                        foregroundColor: const WidgetStatePropertyAll(Colors.white),
-                        minimumSize: const WidgetStatePropertyAll(Size.fromHeight(48)),
+                        foregroundColor: const WidgetStatePropertyAll(
+                          Colors.white,
+                        ),
+                        minimumSize: const WidgetStatePropertyAll(
+                          Size.fromHeight(48),
+                        ),
                         shape: WidgetStatePropertyAll(
-                          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text('Kayıt ol'),
-                    )
+                    ),
                   ],
                 ),
               ),

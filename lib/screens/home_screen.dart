@@ -10,11 +10,6 @@ import 'package:health/health.dart';
 
 // Kendi servis ve ekranlarınızın importları
 import 'package:flutter_application_6/services/streak_service.dart';
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:health/health.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'calorie_camera_screen.dart';
 import 'activity_detail_screen.dart';
@@ -23,7 +18,6 @@ import 'profile_screen.dart';
 import 'water_screen.dart';
 import 'package:flutter_application_6/models/user_model.dart' as local_user;
 import '../services/notification_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class HomeScreen extends StatefulWidget {
   static const routeName = '/home';
@@ -45,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double _sleepHours = -1; // Varsayılan
   final Health health = Health();
 
-  int _stepBurnedCalories=0;
+  int _stepBurnedCalories = 0;
 
   // Streak Verisi
   int _streakCount = 0;
@@ -55,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _todaysCalorie = -1;
   int _todaysWater = -1;
   List<double> _weeklyCalories = List.filled(7, 0.0);
-
 
   int _lastActivityDurationMinutes = 45;
   String _lastActivityName = "koşu";
@@ -71,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
     _requestPermissionsAndFetchData(); // Sağlık verilerini çek
     _checkStreak(); // Seriyi kontrol et
@@ -81,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchTodaysWater();
     _fetchLastActivity();
     _fetchHealthData();
-        _initAppLogic();
+    _initAppLogic();
   }
 
   Future<void> _initAppLogic() async {
@@ -97,39 +90,9 @@ class _HomeScreenState extends State<HomeScreen> {
     await NotificationService().scheduleAllSimulations();
   }
 
-
   Future<void> _fetchLastActivity() async {
     try {
       final activityMap = await SessionManager.getActivityMap();
-      // --- A. BİLDİRİM VE ALARM İZİNLERİ (Android için Kritik) ---
-      
-      
-      /*
-      if (Platform.isAndroid) {
-        final flutterLocalNotificationsPlugin =
-            FlutterLocalNotificationsPlugin();
-
-        // Bildirim izni iste
-        await flutterLocalNotificationsPlugin
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >()
-            ?.requestNotificationsPermission();
-
-        // Tam Zamanlı Alarm İzni (Android 12+ için şart)
-        if (await Permission.scheduleExactAlarm.isDenied) {
-          await Permission.scheduleExactAlarm.request();
-        }
-      }
-      */
-
-
-      // --- B. SAĞLIK (HEALTH) İZİNLERİ ---
-      final types = [
-        HealthDataType.STEPS,
-        HealthDataType.ACTIVE_ENERGY_BURNED,
-        HealthDataType.SLEEP_IN_BED,
-      ];
 
       // Tarihleri yeniden eskiye sırala (Bugün -> Dün -> ...)
       final sortedDates = activityMap.keys.toList()
@@ -401,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- 3. ADIM VE KALORİ VERİLERİ ---
   Future<void> _requestPermissionsAndFetchData() async {
     debugPrint("🔍 [DEBUG] Adım izni isteme süreci başlatılıyor...");
-    
+
     try {
       final types = [HealthDataType.STEPS];
       final permissions = [HealthDataAccess.READ];
@@ -411,11 +374,13 @@ class _HomeScreenState extends State<HomeScreen> {
         types,
         permissions: permissions,
       );
-      
+
       debugPrint("🔍 [DEBUG] İzin penceresi sonucu: $requested");
 
       if (requested) {
-        debugPrint("✅ [DEBUG] İzin verildi veya zaten var. Veri çekmeye gidiliyor...");
+        debugPrint(
+          "✅ [DEBUG] İzin verildi veya zaten var. Veri çekmeye gidiliyor...",
+        );
         await _fetchHealthData();
       } else {
         debugPrint("⚠️ [DEBUG] Kullanıcı izni reddetti veya izin alınamadı.");
@@ -425,13 +390,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
- Future<void> _fetchHealthData() async {
+  Future<void> _fetchHealthData() async {
     debugPrint("👣 [DEBUG] _fetchHealthData fonksiyonuna girildi.");
 
     try {
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
-      
+
       debugPrint("⏳ [DEBUG] Sorgu Zaman Aralığı: $startOfDay  --->  $now");
 
       // 1. ADIMLARI TELEFONDAN ÇEK (OFFLINE/ONLINE FARK ETMEZ)
@@ -441,7 +406,9 @@ class _HomeScreenState extends State<HomeScreen> {
         types: [HealthDataType.STEPS],
       );
 
-      debugPrint("📦 [DEBUG] Health API'den dönen veri parçası sayısı: ${stepsData.length}");
+      debugPrint(
+        "📦 [DEBUG] Health API'den dönen veri parçası sayısı: ${stepsData.length}",
+      );
 
       // Adımları topla
       int totalSteps = 0;
@@ -451,11 +418,10 @@ class _HomeScreenState extends State<HomeScreen> {
           totalSteps += val;
         }
       }
-      
+
       // Kalori Hesabı (Formül: Adım * 0.045)
       int calculatedCalories = (totalSteps * 0.045).toInt();
       debugPrint("∑ [DEBUG] Hesaplanan TOPLAM ADIM: $totalSteps");
-
 
       // 2. FIREBASE HEDEF VERİLERİNİ ÇEK (SADECE ONLINE İSE)
       // Bu kısmı try-catch içine alıyoruz ki hata verirse adımları ekrana basmayı engellemesin.
@@ -463,34 +429,36 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           final currentUser = FirebaseAuth.instance.currentUser;
           if (currentUser != null) {
-             final uid = currentUser.uid;
-             // Veritabanı yolu ve koleksiyon isimlerinin doğruluğundan emin olun
-             DocumentSnapshot mdoc = await FirebaseFirestore.instance
-                 .collection('users')
-                 .doc(uid)
-                 .collection("misc") // "misc" koleksiyonun var mı?
-                 .doc(uid) // Doküman ID'si uid mi?
-                 .get();
+            final uid = currentUser.uid;
+            // Veritabanı yolu ve koleksiyon isimlerinin doğruluğundan emin olun
+            DocumentSnapshot mdoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .collection("misc") // "misc" koleksiyonun var mı?
+                .doc(uid) // Doküman ID'si uid mi?
+                .get();
 
-             if (mdoc.exists && mdoc.data() != null) {
-               var data = mdoc.data() as Map<String, dynamic>;
-               // Verileri güncelle (setState içinde değil, aşağıda toplu yapacağız)
-               if (data.containsKey('CaloryTarget')) {
-                 _dailyCalorieGoal = (data['CaloryTarget'] as num).toInt();
-               }
-               if (data.containsKey('StepsTarget')) {
-                 _stepGoal = (data['StepsTarget'] as num).toInt();
-               }
-             }
+            if (mdoc.exists && mdoc.data() != null) {
+              var data = mdoc.data() as Map<String, dynamic>;
+              // Verileri güncelle (setState içinde değil, aşağıda toplu yapacağız)
+              if (data.containsKey('CaloryTarget')) {
+                _dailyCalorieGoal = (data['CaloryTarget'] as num).toInt();
+              }
+              if (data.containsKey('StepsTarget')) {
+                _stepGoal = (data['StepsTarget'] as num).toInt();
+              }
+            }
           }
         } catch (firebaseError) {
           // Firebase hatası olursa sadece log düş, fonksiyonu durdurma!
-          debugPrint("⚠️ [UYARI] Firebase verisi çekilemedi (Ama adımlar gösterilecek): $firebaseError");
+          debugPrint(
+            "⚠️ [UYARI] Firebase verisi çekilemedi (Ama adımlar gösterilecek): $firebaseError",
+          );
         }
       } else {
-         // OFFLINE İSE: Hedefleri yerel veritabanından (SessionManager) çekebilirsin
-         // Şimdilik mevcut değerleri koruyoruz.
-         debugPrint("ℹ️ [INFO] Offline mod: Firebase sorgusu atlandı.");
+        // OFFLINE İSE: Hedefleri yerel veritabanından (SessionManager) çekebilirsin
+        // Şimdilik mevcut değerleri koruyoruz.
+        debugPrint("ℹ️ [INFO] Offline mod: Firebase sorgusu atlandı.");
       }
 
       // 3. EKRANI GÜNCELLE (HER DURUMDA ÇALIŞIR)
@@ -501,9 +469,8 @@ class _HomeScreenState extends State<HomeScreen> {
           // _stepGoal ve _dailyCalorieGoal yukarıda güncellendiyse onlar da yansır
         });
       }
-      
-      debugPrint("✅ [DEBUG] UI güncellendi (_stepCount: $_stepCount)");
 
+      debugPrint("✅ [DEBUG] UI güncellendi (_stepCount: $_stepCount)");
     } catch (e) {
       // Burası sadece Health API (Adım sensörü) hatası verirse çalışır
       debugPrint('❌ [DEBUG] Kritik Hata (Adımlar çekilemedi): $e');
@@ -555,7 +522,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
   // --- 4. DİYALOGLAR (POP-UP) ---
 
   void _showStepGoalDialog() {
@@ -590,7 +556,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     .firstWhere((fireUser) => fireUser != null);
 
                 final user_id = fireUser!.uid;
-                await FirebaseDatabaseService(uid: user_id).updateMiscInfo(_stepCount, newGoal, _streakCount, _dailyCalorieGoal);
+                await FirebaseDatabaseService(uid: user_id).updateMiscInfo(
+                  _stepCount,
+                  newGoal,
+                  _streakCount,
+                  _dailyCalorieGoal,
+                );
 
                 // Eğer Offline kullanıcı ise veriyi kaydet
                 final user = await SessionManager.getOfflineUser();
@@ -656,12 +627,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   // --- FIREBASE GÜNCELLEME ---
                   final uid = FirebaseAuth.instance.currentUser?.uid;
                   if (uid != null) {
-                      final user = await FirebaseAuth.instance
-                      .authStateChanges()
-                      .firstWhere((user) => user != null);
+                    final user = await FirebaseAuth.instance
+                        .authStateChanges()
+                        .firstWhere((user) => user != null);
 
-                      final user_id = user!.uid;
-                      await FirebaseDatabaseService(uid: user_id).updateMiscInfo(_stepCount, _stepGoal, _streakCount, newGoal);
+                    final user_id = user!.uid;
+                    await FirebaseDatabaseService(uid: user_id).updateMiscInfo(
+                      _stepCount,
+                      _stepGoal,
+                      _streakCount,
+                      newGoal,
+                    );
                   }
                 }
                 if (mounted) Navigator.pop(context);
@@ -718,11 +694,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDashboard(BuildContext context) {
     final color = Theme.of(context).colorScheme.primary;
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(18.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // ÜST BİLGİ & STREAK
             topBar(color),
@@ -744,57 +719,47 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Expanded quickInfoGrid() {
+  Widget quickInfoGrid() {
     final activityStyle = _getActivityStyle(_lastActivityName);
-    return Expanded(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            GridView.count(
-              crossAxisCount: 2,
-              childAspectRatio: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _statCard(
-                  title: 'Kalori',
-                  value: "${(_todaysCalorie != -1 ? _todaysCalorie : 0) + _stepBurnedCalories} kcal",
-                  icon: Icons.local_fire_department,
-                  color: Colors.orange,
-                ),
-                _statCard(
-                  title: 'Su',
-                  value: '${_todaysWater != -1 ? _todaysWater : 6} bardak',
-                  icon: Icons.water_drop,
-                  color: Colors.blue,
-                  onTap: () => setState(() => _selectedIndex = 3),
-                ),
-                _statCard(
-                  title: 'Uyku',
-                  value: '${_sleepHours.toStringAsFixed(1)} sa',
-                  icon: Icons.bedtime,
-                  color: Colors.purple,
-                  onTap: () => setState(() => _selectedIndex = 1),
-                ),
-                _statCard(
-                  title: 'Son Aktivite',
-                  // Süre 0 ise "Aktivite Yok" yazsın, değilse "45 dk Koşu" yazsın
-                  value: _lastActivityDurationMinutes > 0
-                      ? '$_lastActivityDurationMinutes dk $_lastActivityName'
-                      : 'Aktivite Yok',
-
-                  icon: activityStyle['icon'], // Dinamik İkon
-                  color: activityStyle['color'], // Dinamik Renk
-                  // Tıklayınca aktivite sayfasına git
-                  onTap: () => setState(() => _selectedIndex = 2),
-                ),
-              ],
-            ),
-          ],
+    return GridView.count(
+      crossAxisCount: 2,
+      childAspectRatio: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _statCard(
+          title: 'Kalori',
+          value:
+              "${(_todaysCalorie != -1 ? _todaysCalorie : 0) + _stepBurnedCalories} kcal",
+          icon: Icons.local_fire_department,
+          color: Colors.orange,
         ),
-      ),
+        _statCard(
+          title: 'Su',
+          value: '${_todaysWater != -1 ? _todaysWater : 6} bardak',
+          icon: Icons.water_drop,
+          color: Colors.blue,
+          onTap: () => setState(() => _selectedIndex = 3),
+        ),
+        _statCard(
+          title: 'Uyku',
+          value: '${_sleepHours.toStringAsFixed(1)} sa',
+          icon: Icons.bedtime,
+          color: Colors.purple,
+          onTap: () => setState(() => _selectedIndex = 1),
+        ),
+        _statCard(
+          title: 'Son Aktivite',
+          value: _lastActivityDurationMinutes > 0
+              ? '$_lastActivityDurationMinutes dk $_lastActivityName'
+              : 'Aktivite Yok',
+          icon: activityStyle['icon'],
+          color: activityStyle['color'],
+          onTap: () => setState(() => _selectedIndex = 2),
+        ),
+      ],
     );
   }
 

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart'; // Import eklendi
 import 'signup_screen.dart';
 import 'home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/firebase_authService.dart';
+
 // DB erişimi için
 // Model erişimi
 import 'offline_user_creation_screen.dart';
@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
-  final _auth = AuthService();
+  final _auth = FirebaseAuth.instance;
 
   bool loading = false;
   bool hidePassword = true;
@@ -145,13 +145,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final user = await SessionManager.getOfflineUser();
 
-          // --- ID KAYDETME İŞLEMİ ---
-        final prefs = await SharedPreferences.getInstance();
-        if (user?.id != null) {
-          await prefs.setInt('current_user_id', user!.id!);
-          print("Giriş yapan kullanıcı ID kaydedildi: ${user?.id}");
-        }
-        // -------------------------
+      // --- ID KAYDETME İŞLEMİ ---
+      final prefs = await SharedPreferences.getInstance();
+      if (user?.id != null) {
+        await prefs.setInt('current_user_id', user!.id!);
+        print("Giriş yapan kullanıcı ID kaydedildi: ${user?.id}");
+      }
+      // -------------------------
 
       if (!mounted) return;
 
@@ -177,9 +177,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => loading = false);
     }
-
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, HomeScreen.routeName);
   }
 
   @override
