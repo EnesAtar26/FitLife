@@ -17,22 +17,13 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
       appBar: AppBar(title: const Text('Gizlilik')),
       body: ListView(
         children: [
-          SwitchListTile(
-            title: const Text('Çerezleri Kabul Et'),
-            value: profileVisible,
-            onChanged: (value) {
-              setState(() {
-                profileVisible = value;
-              });
-            },
-          ),
           const Divider(),
  const Padding(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Text(
-        'Verileriniz aygıtınızda şifrelenir ve yalnızca izniniz alınarak paylaşılabilir.',
+        'Sağlık verileriniz ve profil bilgileriniz gizli tutulur. Fitlife, verilerinizi yalnızca uygulama deneyimini iyileştirmek için kullanır.',
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 18,
           color: Colors.grey,
         ),
       ),

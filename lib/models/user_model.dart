@@ -19,9 +19,12 @@ class User {
   final int? sleepGoalMinutes;
   final String? createdAt;
   final String? updatedAt;
-  final int? streakCount; //EKLENMELİ DB NASIL BİLMİYORUM
+  final int? streakCount; //
   final Map<DateTime, WaterLog?>? waterLogDailyHistory;
   final Map<DateTime, List<Activity?>>? activityDailyHistory;
+  final bool? notifyW;
+  final bool? notifyA;
+  final bool? notifyS;
 
 
   User({
@@ -44,6 +47,9 @@ class User {
     this.createdAt,
     this.updatedAt,
     this.streakCount,
+    this.notifyW,
+    this.notifyA,
+    this.notifyS
   });
 
   Map<String, dynamic> toMap() {
@@ -65,6 +71,9 @@ class User {
       'created_at': createdAt,
       'updated_at': updatedAt,
       'streak_count': streakCount,
+      'notify_w': notifyW,
+      'notify_a': notifyA,
+      'notify_s': notifyS,
     };
   }
 
@@ -87,6 +96,9 @@ class User {
       createdAt: map['created_at'],
       updatedAt: map['updated_at'],
       streakCount: map['streak_count'],
+      notifyW: map['notify_w'],
+      notifyA: map['notify_a'],
+      notifyS: map['notify_s']
     );
   }
 
@@ -110,6 +122,9 @@ class User {
     String? createdAt,
     String? updatedAt,
     int? streakCount,
+    final bool? notifyW,
+    final bool? notifyA,
+    final bool? notifyS
   }) {
     return User(
       id: id ?? this.id,
@@ -129,6 +144,9 @@ class User {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       streakCount: streakCount ?? this.streakCount,
+      notifyW: notifyW ?? this.notifyW,
+      notifyA: notifyW ?? this.notifyA,
+      notifyS: notifyW ?? this.notifyS,
     );
   }
 }

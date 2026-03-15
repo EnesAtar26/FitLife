@@ -65,7 +65,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         if (user != null) {
           emailController.text = user.email ?? '';
           
-          final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).collection("profile").doc(user.uid).get();
           if (doc.exists) {
             final data = doc.data() as Map<String, dynamic>;
             nameController.text = data['Name'] ?? '';
@@ -128,7 +128,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
         // --- ONLINE KAYIT (Firebase) ---
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).collection("profile").doc(user.uid).update({
             'Name': fName,
             'Surname': lName,
             'Gender': gender,
@@ -137,7 +137,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
             if (finalAge != null) 'Age': finalAge,
             if (birthDate != null) 'BirthDate': birthDate!.toIso8601String(),
           });
-
           // Şifre Güncelleme
           if (passwordController.text.isNotEmpty) {
             if (passwordController.text.length < 6) throw "Şifre en az 6 karakter olmalı";
