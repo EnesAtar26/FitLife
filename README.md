@@ -5,6 +5,7 @@ FitLife is a mobile application that tracks usersâ€™ daily physical activities â
 Key Features:
 
 * Step, distance, and calorie tracking using device sensors
+* AI-powered food analysis feature that estimates meal calories from photos taken by users.
 * Daily water intake reminders and progress tracking
 * Personalized Recommendations and insights
 * Interactive charts for weekly and monthly performance
